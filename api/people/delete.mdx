@@ -1,0 +1,66 @@
+---
+title: "Delete Person"
+api: "POST /people/delete-one/:id"
+description: "Delete a person from the database"
+---
+
+This endpoint deletes a person by their unique ID.
+
+## Authentication
+
+This endpoint requires Basic Authentication. Include the credentials in the Authorization header.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier (cuid) of the person to delete
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://your-domain.com/people/delete-one/clx1234567890abcdefgh \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+```
+
+## Example Response
+
+### 200 Success
+
+```json
+{
+  "message": "Person deleted successfully"
+}
+```
+
+## Error Responses
+
+### 401 Unauthorized
+
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+### 500 Internal Server Error
+
+```json
+{
+  "message": "Failed to delete person"
+}
+```
+
+This error may occur if:
+- The person ID does not exist
+- The person has related messages (foreign key constraint)
+
+<Warning>
+  Deleting a person may fail if they have associated messages in the database due to foreign key constraints. Consider handling or removing related messages first.
+</Warning>

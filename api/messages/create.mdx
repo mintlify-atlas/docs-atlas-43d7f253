@@ -1,0 +1,87 @@
+---
+title: 'Create Message'
+api: 'POST /messages/create-one'
+---
+
+Create a new scheduled WhatsApp message.
+
+## Authentication
+
+This endpoint requires Basic Authentication.
+
+<ParamField header="Authorization" type="string" required>
+  Basic Auth credentials in the format `Basic base64(username:password)`
+</ParamField>
+
+## Request Body
+
+<ParamField body="content" type="string" required>
+  The message content to be sent
+</ParamField>
+
+<ParamField body="sendToPhone" type="string" required>
+  Recipient's phone number in international format (e.g., +1234567890)
+</ParamField>
+
+<ParamField body="sendAfter" type="number" required>
+  Number of days after which to send the message. Must be at least 1.
+</ParamField>
+
+## Response
+
+### Success Response
+
+<ResponseField name="message" type="string">
+  Success confirmation message
+</ResponseField>
+
+```json
+{
+  "message": "Message created successfully"
+}
+```
+
+### Error Responses
+
+#### Missing Required Fields (400)
+
+```json
+{
+  "message": "Missing required fields"
+}
+```
+
+#### Invalid Send After Time (400)
+
+```json
+{
+  "message": "Send after time must be at least after 1 day"
+}
+```
+
+#### Server Error (500)
+
+```json
+{
+  "message": "Failed to create message"
+}
+```
+
+## Example Request
+
+```bash
+curl -X POST https://your-api.com/messages/create-one \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Happy Birthday! Hope you have a great day!",
+    "sendToPhone": "+1234567890",
+    "sendAfter": 7
+  }'
+```
+
+## Notes
+
+- The `sendAfter` value represents the number of days from now when the message should be sent
+- After creating a message, the scheduler automatically reschedules all pending messages
+- The recipient must exist in the People database or will be created automatically

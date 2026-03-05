@@ -1,0 +1,395 @@
+---
+title: WhatsApp Integration
+description: How WhatsApp Web.js connects to WhatsApp and sends messages via the Web API
+---
+
+## Overview
+
+The WhatsApp Message Scheduler uses **WhatsApp Web.js** to integrate with WhatsApp's Web API. This library provides a programmatic interface to WhatsApp Web, enabling automated message sending without requiring the official WhatsApp Business API.
+
+## WhatsApp Web.js Setup
+
+### Client Initialization
+
+The WhatsApp client is configured with local authentication:
+
+```typescript src/services/w-web.ts
+import { Client, LocalAuth } from "whatsapp-web.js";
+
+const client = new Client({
+  authStrategy: new LocalAuth(),
+});
+```
+
+<Info>
+**LocalAuth** stores authentication data locally in a `.wwebjs_auth` directory, so you only need to scan the QR code once.
+</Info>
+
+### Authentication Strategy
+
+WhatsApp Web.js supports multiple authentication strategies:
+
+- **LocalAuth**: Saves session data to local filesystem (used in this project)
+- **NoAuth**: Requires QR code scan every time
+- **RemoteAuth**: Store session data in a database or cloud storage
+
+## QR Code Authentication
+
+When the server starts, WhatsApp generates a QR code that must be scanned with the WhatsApp mobile app:
+
+```typescript src/server.ts
+import * as qrcode from "qrcode-terminal";
+
+client.on("qr", (qr) => {
+  console.log("[QR RECEIVED]");
+  qrcode.generate(qr, { small: true }, (code: string) => {
+    console.log(code);
+  });
+});
+```
+
+### Authentication Flow
+
+1. **Server Starts**: `client.initialize()` is called
+2. **QR Generated**: WhatsApp creates a QR code
+3. **QR Displayed**: The QR code is printed to the terminal
+4. **User Scans**: Open WhatsApp mobile app → Settings → Linked Devices → Link a Device
+5. **Authentication**: Scan the QR code from the terminal
+6. **Session Saved**: Authentication is stored via LocalAuth
+7. **Client Ready**: The `ready` event fires
+
+<Note>
+The QR code expires after ~60 seconds. If it expires, a new one will be generated automatically.
+</Note>
+
+## Client Events
+
+WhatsApp Web.js emits several events during the connection lifecycle:
+
+### Ready Event
+
+Fires when the client is authenticated and ready to send messages:
+
+```typescript src/server.ts
+client.on("ready", async () => {
+  console.log("[CLIENT]: WhatsApp client is ready.");
+  await startServer();
+});
+```
+
+<Tip>
+The HTTP server and message scheduler don't start until the WhatsApp client is ready, ensuring all components are synchronized.
+</Tip>
+
+### Disconnected Event
+
+Fires when the WhatsApp connection is lost:
+
+```typescript src/server.ts
+client.on("disconnected", (reason) => {
+  console.warn("[CLIENT]: Disconnected:", reason);
+});
+```
+
+**Common disconnection reasons:**
+- User logged out on mobile app
+- Session expired
+- Internet connection lost
+- WhatsApp service issues
+
+### Error Event
+
+Fires when an error occurs in the client:
+
+```typescript src/server.ts
+client.on("error", (error) => {
+  console.error("[CLIENT ERROR]:", error);
+});
+```
+
+<Warning>
+If the client disconnects, it will NOT automatically reconnect. You'll need to restart the server and re-authenticate.
+</Warning>
+
+## Sending Messages
+
+The `sendMessage()` function sends a text message to a WhatsApp number:
+
+```typescript src/services/w-web.ts
+const sendMessage = async (phone: string, message: string) => {
+  try {
+    console.log(`Sending message: ${message.slice(0, 100)}... to ${phone}`);
+    client.sendMessage(`${phone}@c.us`, message);
+  } catch (error) {
+    console.error("Error sending message:", error);
+  }
+};
+
+export { sendMessage, client };
+```
+
+### Phone Number Format
+
+WhatsApp uses the Chat ID format: `{phone}@c.us`
+
+**Examples:**
+- US number: `14155551234@c.us`
+- Bangladesh: `8801884510919@c.us`
+- UK number: `447700900000@c.us`
+
+<Info>
+**@c.us** stands for "chat user" and is WhatsApp's identifier for individual users. Group chats use **@g.us** instead.
+</Info>
+
+### Message Content
+
+The `message` parameter accepts:
+- Plain text
+- Emojis
+- Line breaks (`\n`)
+- Markdown-like formatting (not officially supported but works in many clients)
+
+```typescript
+await sendMessage("14155551234", "Hello! 👋\n\nThis is a test message.");
+```
+
+## Worker Integration
+
+The BullMQ worker calls `sendMessage()` when processing jobs:
+
+```typescript src/server.ts
+const worker = new Worker(
+  "messageQueue",
+  async (job) => {
+    try {
+      await sendMessage(job.data.sendToPhone, job.data.content);
+    } catch (error) {
+      console.error("[WORKER ERROR]: Failed to send message", error);
+    }
+  },
+  { connection: redisConfig, concurrency: 1 }
+);
+```
+
+### Why Concurrency = 1?
+
+WhatsApp has rate limits to prevent spam:
+- Maximum messages per second
+- Maximum messages per minute
+- Ban risk for excessive automation
+
+Setting `concurrency: 1` ensures messages are sent **sequentially**, reducing the risk of rate limiting.
+
+<Warning>
+Sending too many messages too quickly can result in a temporary or permanent ban from WhatsApp.
+</Warning>
+
+## Rate Limiting and Best Practices
+
+### Recommended Limits
+
+- **Max 20 messages per minute** to individual contacts
+- **Add delays** between messages (2-5 seconds)
+- **Avoid bulk messaging** to unknown contacts
+- **Vary message content** to avoid spam detection
+
+### Implementation Example
+
+```typescript
+const sendMessageWithDelay = async (phone: string, message: string) => {
+  await sendMessage(phone, message);
+  // Wait 3 seconds before allowing next message
+  await new Promise(resolve => setTimeout(resolve, 3000));
+};
+```
+
+## Error Handling
+
+### Common Errors
+
+1. **Phone number not registered on WhatsApp**
+   ```
+   Error: Phone number is not registered on WhatsApp
+   ```
+   Solution: Verify the phone number is active on WhatsApp
+
+2. **Client not ready**
+   ```
+   Error: Client is not ready
+   ```
+   Solution: Wait for the `ready` event before sending messages
+
+3. **Session expired**
+   ```
+   Error: Session closed
+   ```
+   Solution: Restart the server and re-authenticate
+
+4. **Rate limit exceeded**
+   ```
+   Error: Too many requests
+   ```
+   Solution: Reduce message frequency or add delays
+
+### Robust Error Handling
+
+```typescript
+const sendMessage = async (phone: string, message: string, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`Attempt ${i + 1}: Sending to ${phone}`);
+      await client.sendMessage(`${phone}@c.us`, message);
+      console.log(`Success: Message sent to ${phone}`);
+      return;
+    } catch (error) {
+      console.error(`Attempt ${i + 1} failed:`, error);
+      if (i === retries - 1) throw error;
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+    }
+  }
+};
+```
+
+## Session Management
+
+### Session Storage
+
+LocalAuth stores session data in:
+```
+.wwebjs_auth/
+  └── session/
+      └── Default/
+          ├── Local Storage/
+          ├── Session Storage/
+          └── ... (other browser data)
+```
+
+<Tip>
+Backup the `.wwebjs_auth` directory to avoid re-scanning QR codes after server migrations.
+</Tip>
+
+### Session Persistence
+
+Sessions typically last:
+- **Active sessions**: Until explicitly logged out
+- **Inactive sessions**: ~14 days without activity
+- **Linked devices**: Can be revoked from WhatsApp mobile app
+
+### Logout
+
+To logout and clear the session:
+
+```typescript
+await client.logout();
+```
+
+This removes the saved session and requires re-authentication.
+
+## Advanced Features
+
+### Checking if Number is Registered
+
+```typescript
+const isRegistered = await client.isRegisteredUser(`${phone}@c.us`);
+if (!isRegistered) {
+  console.log(`${phone} is not on WhatsApp`);
+}
+```
+
+### Getting Contact Info
+
+```typescript
+const contact = await client.getContactById(`${phone}@c.us`);
+console.log(contact.name); // Contact's name
+console.log(contact.pushname); // Display name
+```
+
+### Sending Media
+
+```typescript
+import { MessageMedia } from "whatsapp-web.js";
+
+const media = MessageMedia.fromFilePath("./image.jpg");
+await client.sendMessage(`${phone}@c.us`, media, {
+  caption: "Check out this image!"
+});
+```
+
+## Security Considerations
+
+1. **Session Security**: The `.wwebjs_auth` directory contains sensitive data. **Never commit it to version control.**
+
+2. **Phone Numbers**: Store phone numbers securely. Don't expose them in logs or error messages.
+
+3. **Rate Limiting**: Implement proper rate limiting to avoid WhatsApp bans.
+
+4. **User Consent**: Only send messages to users who have explicitly opted in.
+
+5. **Terms of Service**: Using WhatsApp Web.js may violate WhatsApp's Terms of Service. Use at your own risk.
+
+<Warning>
+WhatsApp Web.js uses unofficial APIs. WhatsApp may ban accounts that use automation tools excessively.
+</Warning>
+
+## Debugging
+
+### Enable Debug Logging
+
+```typescript
+const client = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    headless: false, // Show browser window
+    args: ['--no-sandbox'],
+  },
+});
+
+client.on('message', msg => {
+  console.log('Message received:', msg.body);
+});
+```
+
+### Common Issues
+
+**QR Code Not Displaying**
+- Check terminal supports Unicode
+- Try `headless: false` to see browser QR code
+
+**Messages Not Sending**
+- Verify client is ready: `client.info` should be populated
+- Check phone number format includes country code
+- Ensure no rate limiting is active
+
+**Session Keeps Expiring**
+- Check `.wwebjs_auth` directory permissions
+- Ensure disk has sufficient space
+- Verify no antivirus is blocking file writes
+
+## Production Recommendations
+
+1. **Use Remote Auth**: Store sessions in a database for multi-server deployments
+2. **Health Checks**: Monitor client connection status
+3. **Graceful Shutdown**: Close client properly on server exit
+4. **Monitoring**: Track message success/failure rates
+5. **Backups**: Regularly backup session data
+
+```typescript
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('Shutting down...');
+  await client.destroy();
+  process.exit(0);
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Learn about the overall system design
+  </Card>
+  <Card title="Message Scheduling" icon="clock" href="/concepts/message-scheduling">
+    Understand how messages are queued
+  </Card>
+</CardGroup>

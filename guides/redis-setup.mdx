@@ -1,0 +1,410 @@
+---
+title: 'Redis Setup'
+description: 'Set up Redis for message queue and job scheduling in WhatsApp Message Scheduler'
+---
+
+Redis is a critical component of the WhatsApp Message Scheduler, powering the message queue system via BullMQ. This guide will help you set up Redis for your application.
+
+## Why Redis?
+
+The application uses **BullMQ** with Redis to:
+
+- Queue scheduled WhatsApp messages for delivery
+- Process messages asynchronously with configurable concurrency
+- Ensure reliable message delivery even if the server restarts
+- Handle retry logic for failed messages
+
+<Note>
+  Redis is **required** for the application to function. Without Redis, message scheduling won't work.
+</Note>
+
+## Setup Options
+
+You can set up Redis in two ways:
+
+<CardGroup cols={2}>
+  <Card title="Upstash (Recommended)" icon="cloud">
+    Free hosted Redis with excellent reliability
+  </Card>
+  <Card title="Local Redis" icon="server">
+    Self-hosted Redis for development
+  </Card>
+</CardGroup>
+
+## Option 1: Upstash (Recommended)
+
+Upstash offers a free tier with 10,000 commands per day, perfect for development and small-scale production use.
+
+<Steps>
+  <Step title="Create an Upstash Account">
+    1. Go to [upstash.com](https://upstash.com/)
+    2. Sign up with GitHub, Google, or email
+    3. Verify your email address
+  </Step>
+
+  <Step title="Create a Redis Database">
+    1. Click **"Create Database"** in the Upstash console
+    2. Configure your database:
+       - **Name:** whatsapp-scheduler (or any name you prefer)
+       - **Type:** Regional (recommended) or Global
+       - **Region:** Choose the closest region to your server
+       - **TLS:** Enabled (recommended for security)
+    3. Click **"Create"**
+  </Step>
+
+  <Step title="Get Your Connection URL">
+    After creating the database, you'll see connection details:
+    
+    1. Navigate to the **"Details"** tab
+    2. Find the **"REST URL"** or **"Redis URL"** section
+    3. Copy the connection string that looks like:
+    
+    ```
+    rediss://default:AbCdEf123456@us1-relaxing-bee-12345.upstash.io:6379
+    ```
+    
+    <Note>
+      The URL starts with `rediss://` (with two 's') for secure TLS connections.
+    </Note>
+  </Step>
+
+  <Step title="Add to Environment Variables">
+    Add the Redis URL to your `.env` file:
+    
+    ```bash .env
+    REDIS_REST_URL="rediss://default:your-token@us1-relaxing-bee-12345.upstash.io:6379"
+    ```
+    
+    <Warning>
+      Keep your Redis URL secret! It contains authentication credentials. Never commit it to version control.
+    </Warning>
+  </Step>
+
+  <Step title="Verify Connection">
+    Restart your server and check for successful connection:
+    
+    ```bash
+    bun run start
+    ```
+    
+    You should see:
+    ```
+    [WORKER]: Ready!
+    [CLIENT]: WhatsApp client is ready.
+    [SERVER]: Running on http://localhost:3000
+    ```
+  </Step>
+</Steps>
+
+### Upstash Free Tier Limits
+
+<ResponseField name="Commands per day" type="number">
+  10,000 commands/day
+</ResponseField>
+
+<ResponseField name="Max connections" type="number">
+  100 concurrent connections
+</ResponseField>
+
+<ResponseField name="Max data size" type="string">
+  256 MB
+</ResponseField>
+
+<ResponseField name="Command timeout" type="string">
+  1 second
+</ResponseField>
+
+<Note>
+  For most use cases, the free tier is sufficient. If you exceed limits, Upstash offers affordable paid plans.
+</Note>
+
+## Option 2: Local Redis
+
+For development, you can run Redis locally on your machine.
+
+<Steps>
+  <Step title="Install Redis">
+    <CodeGroup>
+    ```bash macOS (Homebrew)
+    brew install redis
+    ```
+    
+    ```bash Ubuntu/Debian
+    sudo apt update
+    sudo apt install redis-server
+    ```
+    
+    ```bash Windows (WSL)
+    # Install WSL first, then:
+    sudo apt update
+    sudo apt install redis-server
+    ```
+    
+    ```bash Docker
+    docker run -d -p 6379:6379 redis:alpine
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Start Redis Server">
+    <CodeGroup>
+    ```bash macOS (Homebrew)
+    brew services start redis
+    ```
+    
+    ```bash Ubuntu/Debian
+    sudo systemctl start redis-server
+    sudo systemctl enable redis-server
+    ```
+    
+    ```bash Manual Start
+    redis-server
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Verify Redis is Running">
+    Test the connection:
+    
+    ```bash
+    redis-cli ping
+    ```
+    
+    Expected output:
+    ```
+    PONG
+    ```
+  </Step>
+
+  <Step title="Configure Connection URL">
+    Add to your `.env` file:
+    
+    ```bash .env
+    REDIS_REST_URL="redis://localhost:6379"
+    ```
+    
+    With authentication (if configured):
+    ```bash
+    REDIS_REST_URL="redis://username:password@localhost:6379"
+    ```
+  </Step>
+</Steps>
+
+## Redis Configuration in Code
+
+The application configures Redis in `src/config/redis.ts`:
+
+```typescript src/config/redis.ts
+export const redisConfig = {
+  url: process.env.REDIS_REST_URL,
+  maxRetriesPerRequest: null,
+};
+```
+
+This configuration is used to create BullMQ workers:
+
+```typescript src/server.ts
+import { Worker } from "bullmq";
+import { redisConfig } from "./config/redis";
+
+const worker = new Worker(
+  "messageQueue",
+  async (job) => {
+    try {
+      await sendMessage(job.data.sendToPhone, job.data.content);
+    } catch (error) {
+      console.error("[WORKER ERROR]: Failed to send message", error);
+    }
+  },
+  { connection: redisConfig, concurrency: 1 }
+);
+
+worker.on("ready", () => {
+  console.log("[WORKER]: Ready!");
+});
+
+worker.on("error", (error) => {
+  console.error("[WORKER ERROR]:", error);
+});
+```
+
+### Configuration Options
+
+<ParamField path="url" type="string" required>
+  Redis connection URL with authentication credentials
+</ParamField>
+
+<ParamField path="maxRetriesPerRequest" type="number | null" default="null">
+  Maximum number of retries per request. Set to `null` for unlimited retries.
+</ParamField>
+
+<ParamField path="concurrency" type="number" default="1">
+  Number of jobs processed simultaneously. Set to 1 to process messages sequentially.
+</ParamField>
+
+## Advanced Configuration
+
+### Custom Redis Options
+
+You can extend the Redis configuration with additional options:
+
+```typescript src/config/redis.ts
+export const redisConfig = {
+  url: process.env.REDIS_REST_URL,
+  maxRetriesPerRequest: null,
+  enableReadyCheck: true,
+  maxRetriesPerRequest: 3,
+  retryStrategy: (times: number) => {
+    const delay = Math.min(times * 50, 2000);
+    return delay;
+  },
+};
+```
+
+### Connection Pooling
+
+For high-traffic applications, configure connection pooling:
+
+```typescript
+export const redisConfig = {
+  url: process.env.REDIS_REST_URL,
+  maxRetriesPerRequest: null,
+  lazyConnect: false,
+  keepAlive: 30000,
+  connectionName: "whatsapp-scheduler",
+};
+```
+
+### TLS Configuration
+
+For secure connections (required for Upstash):
+
+```typescript
+export const redisConfig = {
+  url: process.env.REDIS_REST_URL,
+  maxRetriesPerRequest: null,
+  tls: {
+    rejectUnauthorized: true,
+  },
+};
+```
+
+## Monitoring Redis
+
+### Using Redis CLI
+
+Monitor Redis commands in real-time:
+
+```bash
+redis-cli monitor
+```
+
+Check queue status:
+
+```bash
+redis-cli
+> KEYS *
+> LLEN bull:messageQueue:waiting
+> LLEN bull:messageQueue:active
+> LLEN bull:messageQueue:completed
+```
+
+### Using Upstash Console
+
+If using Upstash:
+
+1. Go to your Upstash dashboard
+2. Select your database
+3. Navigate to **"CLI"** tab to run commands
+4. Check **"Metrics"** tab for usage statistics
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Refused">
+    **Error:** `Error: connect ECONNREFUSED 127.0.0.1:6379`
+    
+    **Solutions:**
+    1. Verify Redis is running: `redis-cli ping`
+    2. Check if Redis is listening on the correct port:
+       ```bash
+       netstat -an | grep 6379
+       ```
+    3. Ensure no firewall is blocking port 6379
+    4. Try restarting Redis:
+       ```bash
+       sudo systemctl restart redis-server
+       ```
+  </Accordion>
+
+  <Accordion title="Authentication Failed">
+    **Error:** `ReplyError: NOAUTH Authentication required`
+    
+    **Solutions:**
+    1. Verify your Redis URL includes credentials:
+       ```
+       redis://username:password@host:port
+       ```
+    2. For Upstash, ensure you copied the full URL with the token
+    3. Test authentication:
+       ```bash
+       redis-cli -u "YOUR_REDIS_URL" ping
+       ```
+  </Accordion>
+
+  <Accordion title="Worker Not Starting">
+    **Error:** Worker doesn't log "[WORKER]: Ready!"
+    
+    **Solutions:**
+    1. Check that `REDIS_REST_URL` is set in `.env`
+    2. Verify Redis connection with:
+       ```typescript
+       import Redis from "ioredis";
+       const redis = new Redis(process.env.REDIS_REST_URL);
+       redis.ping().then(console.log).catch(console.error);
+       ```
+    3. Check server logs for connection errors
+    4. Ensure BullMQ is properly installed:
+       ```bash
+       bun add bullmq ioredis
+       ```
+  </Accordion>
+
+  <Accordion title="TLS/SSL Errors">
+    **Error:** `Error: self signed certificate in certificate chain`
+    
+    **Solutions:**
+    1. Ensure your Redis URL uses `rediss://` (with two 's')
+    2. For Upstash, TLS is required and configured automatically
+    3. For local development, use `redis://` (no TLS)
+    4. If using self-signed certificates, update config:
+       ```typescript
+       tls: { rejectUnauthorized: false }
+       ```
+  </Accordion>
+
+  <Accordion title="Commands Exceeding Upstash Limits">
+    **Error:** Rate limit exceeded or quota warnings
+    
+    **Solutions:**
+    1. Monitor your usage in the Upstash dashboard
+    2. Optimize job scheduling to reduce Redis commands
+    3. Implement caching for frequently accessed data
+    4. Consider upgrading to a paid plan if needed
+    5. Use `maxRetriesPerRequest` to limit retry attempts
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn about all environment variables
+  </Card>
+  <Card title="Authentication" icon="lock" href="/guides/authentication">
+    Secure your API endpoints
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore message scheduling endpoints
+  </Card>
+</CardGroup>

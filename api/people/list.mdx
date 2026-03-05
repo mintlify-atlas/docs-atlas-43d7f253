@@ -1,0 +1,75 @@
+---
+title: "List All People"
+api: "GET /people/all"
+description: "Retrieve all people ordered by name"
+---
+
+This endpoint retrieves all people from the database, ordered alphabetically by name.
+
+## Authentication
+
+This endpoint requires Basic Authentication. Include the credentials in the Authorization header.
+
+## Response
+
+<ResponseField name="people" type="array">
+  An array of people objects
+  
+  <ResponseField name="id" type="string">
+    Unique identifier (cuid)
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Person's name (unique)
+  </ResponseField>
+  
+  <ResponseField name="phone" type="string">
+    Person's phone number (unique, 13 characters)
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET https://your-domain.com/people/all \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+```
+
+## Example Response
+
+```json
+[
+  {
+    "id": "clx1234567890abcdefgh",
+    "name": "John Doe",
+    "phone": "+12345678901"
+  },
+  {
+    "id": "clx0987654321zyxwvuts",
+    "name": "Jane Smith",
+    "phone": "+19876543210"
+  }
+]
+```
+
+## Error Responses
+
+<ResponseField name="message" type="string">
+  Error message describing what went wrong
+</ResponseField>
+
+### 401 Unauthorized
+
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+### 500 Internal Server Error
+
+```json
+{
+  "message": "Failed to fetch people"
+}
+```

@@ -1,0 +1,82 @@
+---
+title: "Update Person"
+api: "POST /people/update-one/:id"
+description: "Update an existing person's information"
+---
+
+This endpoint updates a person's name and/or phone number.
+
+## Authentication
+
+This endpoint requires Basic Authentication. Include the credentials in the Authorization header.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier (cuid) of the person to update
+</ParamField>
+
+## Request Body
+
+<ParamField body="name" type="string" optional>
+  Person's new name (must be unique if changed)
+</ParamField>
+
+<ParamField body="phone" type="string" optional>
+  Person's new phone number (must be unique if changed, 13 characters)
+</ParamField>
+
+<Note>
+  You can update either field independently or both at once. Only include the fields you want to update.
+</Note>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://your-domain.com/people/update-one/clx1234567890abcdefgh \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Smith",
+    "phone": "+19876543210"
+  }'
+```
+
+## Example Response
+
+### 200 Success
+
+```json
+{
+  "message": "Person updated successfully"
+}
+```
+
+## Error Responses
+
+### 401 Unauthorized
+
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+### 500 Internal Server Error
+
+```json
+{
+  "message": "Failed to update person"
+}
+```
+
+This error may occur if:
+- The person ID does not exist
+- A unique constraint is violated (name or phone already exists for another person)
+- The phone number is not exactly 13 characters (if updated)

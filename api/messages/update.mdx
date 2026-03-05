@@ -1,0 +1,75 @@
+---
+title: 'Update Message'
+api: 'POST /messages/update-one/:id'
+---
+
+Update an existing scheduled message.
+
+## Authentication
+
+This endpoint requires Basic Authentication.
+
+<ParamField header="Authorization" type="string" required>
+  Basic Auth credentials in the format `Basic base64(username:password)`
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the message to update
+</ParamField>
+
+## Request Body
+
+<ParamField body="content" type="string" optional>
+  Updated message content
+</ParamField>
+
+<ParamField body="sendToPhone" type="string" optional>
+  Updated recipient's phone number in international format
+</ParamField>
+
+<ParamField body="sendAfter" type="number" optional>
+  Updated number of days after which to send the message
+</ParamField>
+
+## Response
+
+### Success Response
+
+<ResponseField name="message" type="string">
+  Success confirmation message
+</ResponseField>
+
+```json
+{
+  "message": "Message updated successfully"
+}
+```
+
+### Error Response
+
+```json
+{
+  "message": "Failed to update message"
+}
+```
+
+## Example Request
+
+```bash
+curl -X POST https://your-api.com/messages/update-one/clx1a2b3c4d5e6f7g8h9i0j1k \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Updated message: Happy Birthday!",
+    "sendToPhone": "+1234567890",
+    "sendAfter": 10
+  }'
+```
+
+## Notes
+
+- Only include fields you want to update in the request body
+- After updating a message, the scheduler automatically reschedules all pending messages
+- If the message ID doesn't exist, a 500 error will be returned

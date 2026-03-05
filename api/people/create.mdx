@@ -1,0 +1,89 @@
+---
+title: "Create Person"
+api: "POST /people/create-one"
+description: "Create a new person in the database"
+---
+
+This endpoint creates a new person with a name and phone number.
+
+## Authentication
+
+This endpoint requires Basic Authentication. Include the credentials in the Authorization header.
+
+## Request Body
+
+<ParamField body="name" type="string" required>
+  Person's name (must be unique)
+</ParamField>
+
+<ParamField body="phone" type="string" required>
+  Person's phone number (must be unique and exactly 13 characters)
+  
+  **Validation:** Phone number must be exactly 13 characters long (e.g., +12345678901)
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://your-domain.com/people/create-one \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "phone": "+12345678901"
+  }'
+```
+
+## Example Response
+
+### 200 Success
+
+```json
+{
+  "message": "Person created successfully"
+}
+```
+
+## Error Responses
+
+### 400 Bad Request - Missing Fields
+
+```json
+{
+  "message": "Missing required fields"
+}
+```
+
+### 400 Bad Request - Invalid Phone
+
+```json
+{
+  "message": "Invalid phone number"
+}
+```
+
+This error occurs when the phone number is not exactly 13 characters long.
+
+### 401 Unauthorized
+
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+### 500 Internal Server Error
+
+```json
+{
+  "message": "Failed to create person"
+}
+```
+
+This error may occur if a person with the same name or phone number already exists (unique constraint violation).

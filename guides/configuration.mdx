@@ -1,0 +1,343 @@
+---
+title: 'Configuration'
+description: 'Configure your WhatsApp Message Scheduler with environment variables and settings'
+---
+
+The WhatsApp Message Scheduler uses environment variables for configuration. This guide explains each setting and how to configure them properly.
+
+## Environment Variables
+
+All configuration is managed through a `.env` file in the root directory of your project.
+
+### Creating the .env File
+
+Create a `.env` file in your project root:
+
+```bash
+touch .env
+```
+
+Add the following variables:
+
+```bash .env
+PORT=3000
+DATABASE_URL="file:./dev.db"
+REDIS_REST_URL="<YOUR_REDIS_URL>"
+USERNAME=user
+PASWORD=pass
+```
+
+<Warning>
+  Never commit your `.env` file to version control. Add it to `.gitignore` to keep your credentials secure.
+</Warning>
+
+## Configuration Reference
+
+### PORT
+
+<ParamField path="PORT" type="number" default="3000">
+  The port number where the HTTP server will listen for incoming requests.
+</ParamField>
+
+**Example:**
+```bash
+PORT=3000
+```
+
+**Usage in code:**
+```typescript src/server.ts
+const port = Bun.env.PORT || 3000;
+
+serve({
+  fetch: app.fetch,
+  port: Number(port),
+});
+```
+
+<Note>
+  If you change the port, make sure your firewall allows traffic on that port and update any client applications connecting to the API.
+</Note>
+
+---
+
+### DATABASE_URL
+
+<ParamField path="DATABASE_URL" type="string" required>
+  The connection string for your database. Supports SQLite (file-based) or PostgreSQL/MySQL (connection URL).
+</ParamField>
+
+**SQLite (Default):**
+```bash
+DATABASE_URL="file:./dev.db"
+```
+
+**PostgreSQL:**
+```bash
+DATABASE_URL="postgresql://user:password@localhost:5432/mydb?schema=public"
+```
+
+**MySQL:**
+```bash
+DATABASE_URL="mysql://user:password@localhost:3306/mydb"
+```
+
+**Usage in code:**
+```typescript prisma/schema.prisma
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+```
+
+<Accordion title="Changing Database Provider">
+  To use PostgreSQL or MySQL instead of SQLite:
+  
+  1. Update the `provider` in `prisma/schema.prisma`:
+  ```prisma
+  datasource db {
+    provider = "postgresql"  // or "mysql"
+    url      = env("DATABASE_URL")
+  }
+  ```
+  
+  2. Install the appropriate database client:
+  ```bash
+  bun add pg  # for PostgreSQL
+  bun add mysql2  # for MySQL
+  ```
+  
+  3. Run migrations:
+  ```bash
+  bunx prisma migrate dev
+  ```
+</Accordion>
+
+---
+
+### REDIS_REST_URL
+
+<ParamField path="REDIS_REST_URL" type="string" required>
+  The connection URL for your Redis server. Required for BullMQ message queue functionality.
+</ParamField>
+
+**Upstash (Recommended):**
+```bash
+REDIS_REST_URL="rediss://default:your-token@us1-relaxing-bee-12345.upstash.io:6379"
+```
+
+**Local Redis:**
+```bash
+REDIS_REST_URL="redis://localhost:6379"
+```
+
+**Redis Cloud:**
+```bash
+REDIS_REST_URL="redis://username:password@redis-host:port"
+```
+
+**Usage in code:**
+```typescript src/config/redis.ts
+export const redisConfig = {
+  url: process.env.REDIS_REST_URL,
+  maxRetriesPerRequest: null,
+};
+```
+
+The Redis connection is used by BullMQ for job scheduling:
+
+```typescript src/server.ts
+import { Worker } from "bullmq";
+import { redisConfig } from "./config/redis";
+
+const worker = new Worker(
+  "messageQueue",
+  async (job) => {
+    await sendMessage(job.data.sendToPhone, job.data.content);
+  },
+  { connection: redisConfig, concurrency: 1 }
+);
+```
+
+<Note>
+  See the [Redis Setup Guide](/guides/redis-setup) for detailed instructions on obtaining a Redis URL.
+</Note>
+
+---
+
+### USERNAME
+
+<ParamField path="USERNAME" type="string" default="user">
+  The username for HTTP Basic Authentication. Used to protect API endpoints.
+</ParamField>
+
+**Example:**
+```bash
+USERNAME=admin
+```
+
+**Usage in code:**
+```typescript src/routes/messages.ts
+import { basicAuth } from "hono/basic-auth";
+
+const messagesRoutes = new Hono().use(
+  basicAuth({
+    username: Bun.env.USERNAME || "user",
+    password: Bun.env.PASSWORD || "pass",
+  })
+);
+```
+
+<Warning>
+  Choose a strong, unique username. Avoid common usernames like "admin" or "root" in production.
+</Warning>
+
+---
+
+### PASSWORD
+
+<ParamField path="PASSWORD" type="string" default="pass">
+  The password for HTTP Basic Authentication. Used together with USERNAME to protect API endpoints.
+</ParamField>
+
+**Example:**
+```bash
+PASWORD=your-secure-password-here
+```
+
+**Usage in code:**
+```typescript src/routes/people.ts
+import { basicAuth } from "hono/basic-auth";
+
+const peopleRoutes = new Hono().use(
+  basicAuth({
+    username: Bun.env.USERNAME || "user",
+    password: Bun.env.PASSWORD || "pass",
+  })
+);
+```
+
+<Warning>
+  **Security Best Practices:**
+  - Use a password with at least 16 characters
+  - Include uppercase, lowercase, numbers, and special characters
+  - Never reuse passwords from other services
+  - Consider using environment-specific passwords (development vs production)
+</Warning>
+
+## Complete Configuration Example
+
+Here's a complete `.env` file with recommended settings:
+
+<CodeGroup>
+```bash Development
+PORT=3000
+DATABASE_URL="file:./dev.db"
+REDIS_REST_URL="redis://localhost:6379"
+USERNAME=dev_user
+PASWORD=dev_password_123
+```
+
+```bash Production
+PORT=8080
+DATABASE_URL="postgresql://user:pass@prod-db.example.com:5432/scheduler"
+REDIS_REST_URL="rediss://default:token@prod-redis.upstash.io:6379"
+USERNAME=prod_admin
+PASWORD=3xtr3m3ly_S3cur3_P@ssw0rd!
+```
+</CodeGroup>
+
+## Environment-Specific Configuration
+
+For different environments (development, staging, production), create separate `.env` files:
+
+```bash Project Structure
+.
+├── .env.development
+├── .env.staging
+├── .env.production
+└── .env.example  # Template without sensitive data
+```
+
+Load the appropriate file based on your environment:
+
+```bash
+# Development
+cp .env.development .env
+bun run dev
+
+# Production
+cp .env.production .env
+bun run start
+```
+
+## Validating Configuration
+
+Create a validation script to ensure all required variables are set:
+
+```typescript scripts/validate-env.ts
+const requiredEnvVars = [
+  'DATABASE_URL',
+  'REDIS_REST_URL',
+  'USERNAME',
+  'PASSWORD'
+];
+
+const missing = requiredEnvVars.filter(key => !Bun.env[key]);
+
+if (missing.length > 0) {
+  console.error('Missing required environment variables:');
+  missing.forEach(key => console.error(`  - ${key}`));
+  process.exit(1);
+}
+
+console.log('✓ All required environment variables are set');
+```
+
+Run before starting the server:
+
+```bash
+bun run scripts/validate-env.ts && bun run start
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Redis Setup" icon="database" href="/guides/redis-setup">
+    Configure Redis for message scheduling
+  </Card>
+  <Card title="Authentication" icon="lock" href="/guides/authentication">
+    Secure your API with proper authentication
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Environment Variables Not Loading">
+    If your environment variables aren't being read:
+    
+    1. Ensure `.env` is in the project root directory
+    2. Verify the file is named exactly `.env` (not `.env.txt`)
+    3. Check that variables don't have spaces around the `=` sign
+    4. Restart your server after changing `.env`
+    5. Try accessing variables with `Bun.env.VARIABLE_NAME`
+  </Accordion>
+
+  <Accordion title="Invalid Database URL">
+    If you see database connection errors:
+    
+    1. Verify the URL format matches your database provider
+    2. For SQLite, ensure the directory path exists
+    3. For remote databases, check network connectivity
+    4. Test the connection with your database client
+  </Accordion>
+
+  <Accordion title="Redis Connection Issues">
+    If Redis won't connect:
+    
+    1. Verify the URL includes the correct protocol (`redis://` or `rediss://`)
+    2. Check if authentication credentials are correct
+    3. Ensure the Redis server is running and accessible
+    4. Test with `redis-cli -u YOUR_REDIS_URL ping`
+  </Accordion>
+</AccordionGroup>

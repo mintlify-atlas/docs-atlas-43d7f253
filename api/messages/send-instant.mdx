@@ -1,0 +1,75 @@
+---
+title: 'Send Instant Message'
+api: 'POST /messages/send-instant'
+---
+
+Send a WhatsApp message immediately without scheduling.
+
+## Authentication
+
+This endpoint requires Basic Authentication.
+
+<ParamField header="Authorization" type="string" required>
+  Basic Auth credentials in the format `Basic base64(username:password)`
+</ParamField>
+
+## Request Body
+
+<ParamField body="content" type="string" required>
+  The message content to be sent
+</ParamField>
+
+<ParamField body="sendToPhone" type="string" required>
+  Recipient's phone number in international format (e.g., +1234567890)
+</ParamField>
+
+## Response
+
+### Success Response
+
+<ResponseField name="message" type="string">
+  Success confirmation message
+</ResponseField>
+
+```json
+{
+  "message": "Message sent successfully"
+}
+```
+
+### Error Responses
+
+#### Missing Required Fields (400)
+
+```json
+{
+  "message": "Missing required fields"
+}
+```
+
+#### Server Error (500)
+
+```json
+{
+  "message": "Failed to send message"
+}
+```
+
+## Example Request
+
+```bash
+curl -X POST https://your-api.com/messages/send-instant \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Hello! This is an instant message.",
+    "sendToPhone": "+1234567890"
+  }'
+```
+
+## Notes
+
+- This endpoint sends the message immediately via WhatsApp Web
+- The message is NOT saved to the database or scheduled
+- Requires an active WhatsApp Web connection
+- Use this for urgent messages that cannot wait for scheduled delivery

@@ -1,0 +1,50 @@
+---
+title: 'Reschedule Messages'
+api: 'GET /messages/reschedule'
+---
+
+Manually trigger the rescheduling of all pending messages. This updates the internal scheduler with the latest message queue.
+
+## Authentication
+
+This endpoint requires Basic Authentication.
+
+<ParamField header="Authorization" type="string" required>
+  Basic Auth credentials in the format `Basic base64(username:password)`
+</ParamField>
+
+## Response
+
+### Success Response
+
+<ResponseField name="message" type="string">
+  Success confirmation message
+</ResponseField>
+
+```json
+{
+  "message": "Messages rescheduled successfully"
+}
+```
+
+### Error Response
+
+```json
+{
+  "message": "Failed to reschedule messages"
+}
+```
+
+## Example Request
+
+```bash
+curl -X GET https://your-api.com/messages/reschedule \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+```
+
+## Notes
+
+- This endpoint is automatically called after create, update, and delete operations
+- Manually calling this endpoint is useful if you need to refresh the scheduler state
+- The scheduler recalculates send times for all pending messages based on their `sendAfter` values
+- No changes are made to the database; only the in-memory scheduler is updated

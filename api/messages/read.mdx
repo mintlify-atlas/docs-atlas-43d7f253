@@ -1,0 +1,75 @@
+---
+title: 'Get Message'
+api: 'GET /messages/read-one/:id'
+---
+
+Retrieve a specific scheduled message by its ID.
+
+## Authentication
+
+This endpoint requires Basic Authentication.
+
+<ParamField header="Authorization" type="string" required>
+  Basic Auth credentials in the format `Basic base64(username:password)`
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the message to retrieve
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  Unique message identifier
+</ResponseField>
+
+<ResponseField name="content" type="string">
+  Message content to be sent
+</ResponseField>
+
+<ResponseField name="sendToPhone" type="string">
+  Recipient's phone number
+</ResponseField>
+
+<ResponseField name="sendAfter" type="number">
+  Number of days after which to send the message
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp when message was created
+</ResponseField>
+
+### Success Response
+
+```json
+{
+  "id": "clx1a2b3c4d5e6f7g8h9i0j1k",
+  "content": "Happy Birthday! Wishing you all the best.",
+  "sendToPhone": "+1234567890",
+  "sendAfter": 7,
+  "createdAt": "2026-03-05T10:30:00.000Z"
+}
+```
+
+### Message Not Found
+
+```json
+null
+```
+
+### Error Response
+
+```json
+{
+  "message": "Failed to fetch message"
+}
+```
+
+## Example Request
+
+```bash
+curl -X GET https://your-api.com/messages/read-one/clx1a2b3c4d5e6f7g8h9i0j1k \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+```

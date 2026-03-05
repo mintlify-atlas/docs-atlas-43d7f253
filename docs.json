@@ -1,122 +1,99 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "name": "WhatsApp Message Scheduler",
   "theme": "mint",
-  "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#040404",
+    "light": "#6ce7c1",
+    "dark": "#6a7c7c"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/7aaf5b71-fe08-440a-8733-54335b54cff4.jpg",
+  "logo": {
+    "light": "https://media.brand.dev/0ab6da28-77d0-4243-9317-c9ee01331fe3.svg",
+    "dark": "https://media.brand.dev/0ab6da28-77d0-4243-9317-c9ee01331fe3.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/anupom69/bun-hono-backend-optimized"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/anupom69/bun-hono-backend-optimized"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/architecture",
+              "concepts/message-scheduling",
+              "concepts/whatsapp-integration"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/setup",
+              "guides/configuration",
+              "guides/redis-setup",
+              "guides/authentication"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api/overview"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Messages",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/messages/list",
+              "api/messages/create",
+              "api/messages/read",
+              "api/messages/update",
+              "api/messages/delete",
+              "api/messages/send-instant",
+              "api/messages/reschedule"
+            ]
+          },
+          {
+            "group": "People",
+            "pages": [
+              "api/people/list",
+              "api/people/create",
+              "api/people/read",
+              "api/people/update",
+              "api/people/delete"
+            ]
+          },
+          {
+            "group": "System",
+            "pages": [
+              "api/system/health",
+              "api/system/time-left"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

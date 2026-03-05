@@ -1,0 +1,118 @@
+---
+title: Introduction
+description: A REST API service for scheduling and sending WhatsApp messages programmatically
+---
+
+## What is WhatsApp Message Scheduler?
+
+WhatsApp Message Scheduler is a backend API service built with Bun and Hono that enables you to schedule and send WhatsApp messages programmatically. It leverages WhatsApp Web's client interface to integrate seamlessly with your WhatsApp account, allowing you to build automated messaging workflows.
+
+The service uses a queue-based architecture with BullMQ and Redis to reliably schedule and deliver messages at specified times, making it perfect for reminder systems, follow-up messages, or any time-delayed communication needs.
+
+## Why Use This Service?
+
+Traditional WhatsApp automation solutions often require complex setups or paid third-party services. This project provides:
+
+- **Open-source and self-hosted**: Full control over your data and messaging infrastructure
+- **Simple REST API**: Easy integration with any frontend or service
+- **Reliable scheduling**: Queue-based architecture ensures messages are delivered even if the server restarts
+- **WhatsApp Web integration**: No unofficial APIs or phone number requirements beyond your existing WhatsApp account
+- **Built with modern tools**: Leverages Bun's performance, Hono's lightweight framework, and Prisma's type-safe database access
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Message Scheduling" icon="clock">
+    Schedule WhatsApp messages to be sent after a specified number of days
+  </Card>
+  
+  <Card title="Instant Messaging" icon="bolt">
+    Send messages immediately via API without scheduling delays
+  </Card>
+  
+  <Card title="Contact Management" icon="users">
+    Store and manage contacts with phone numbers in a local database
+  </Card>
+  
+  <Card title="Queue-Based Processing" icon="list-check">
+    BullMQ integration ensures reliable message delivery with retry mechanisms
+  </Card>
+  
+  <Card title="Basic Authentication" icon="lock">
+    Secure API endpoints with username/password authentication
+  </Card>
+  
+  <Card title="SQLite Database" icon="database">
+    Lightweight Prisma-powered database for storing contacts and messages
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+The service is built on several key components:
+
+**Core Stack**
+- **Runtime**: Bun - Fast JavaScript runtime with native TypeScript support
+- **Framework**: Hono - Lightweight web framework optimized for edge computing
+- **Database**: SQLite with Prisma ORM for type-safe database access
+- **Queue**: BullMQ with Redis for reliable message scheduling
+- **WhatsApp Client**: whatsapp-web.js for WhatsApp Web integration
+
+**Data Models**
+
+The service manages three primary entities defined in the Prisma schema:
+
+```prisma
+model AdminProfile {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  password    String
+  lastCheckIn DateTime @default(now())
+}
+
+model People {
+  id      String    @id @default(cuid())
+  name    String    @unique
+  phone   String    @unique
+  Message Message[]
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  content     String
+  sendTo      People   @relation(fields: [sendToPhone], references: [phone])
+  sendToPhone String
+  sendAfter   Float    @default(0)
+  createdAt   DateTime @default(now())
+}
+```
+
+<Note>
+Messages are scheduled based on the `sendAfter` field, which represents the number of days to wait before sending, calculated from the admin's `lastCheckIn` timestamp.
+</Note>
+
+## Use Cases
+
+This service is ideal for:
+
+- **Personal reminders**: Schedule messages to yourself or family members
+- **Follow-up systems**: Automatically send follow-ups after meetings or events
+- **Birthday/anniversary reminders**: Schedule greeting messages in advance
+- **Notification systems**: Send alerts or updates through WhatsApp
+- **Customer engagement**: Build automated customer communication workflows
+- **Testing environments**: Develop and test WhatsApp integrations without production risks
+
+## What's Next?
+
+Ready to get started? The [Quickstart guide](/quickstart) will walk you through setting up your own instance in minutes.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running with WhatsApp Message Scheduler
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore all available endpoints and parameters
+  </Card>
+</CardGroup>

@@ -1,0 +1,44 @@
+---
+title: "Health Check"
+api: "GET /"
+---
+
+Returns the health status of the API server. This endpoint is useful for monitoring and confirming that the backend service is running.
+
+## Authentication
+
+This endpoint does **not** require authentication.
+
+## Response
+
+<ResponseField name="message" type="string" required>
+  Status message indicating the server is running
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "message": "Backend Server is running !!!"
+}
+```
+
+## Example Request
+
+```bash cURL
+curl http://localhost:3000/
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3000/');
+const data = await response.json();
+
+console.log(data);
+// { message: "Backend Server is running !!!" }
+```
+
+## Status Codes
+
+<ResponseField name="200" type="OK">
+  Server is healthy and running
+</ResponseField>

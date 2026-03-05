@@ -1,0 +1,55 @@
+---
+title: 'Delete Message'
+api: 'POST /messages/delete-one/:id'
+---
+
+Delete a scheduled message.
+
+## Authentication
+
+This endpoint requires Basic Authentication.
+
+<ParamField header="Authorization" type="string" required>
+  Basic Auth credentials in the format `Basic base64(username:password)`
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the message to delete
+</ParamField>
+
+## Response
+
+### Success Response
+
+<ResponseField name="message" type="string">
+  Success confirmation message
+</ResponseField>
+
+```json
+{
+  "message": "Message deleted successfully"
+}
+```
+
+### Error Response
+
+```json
+{
+  "message": "Failed to delete message"
+}
+```
+
+## Example Request
+
+```bash
+curl -X POST https://your-api.com/messages/delete-one/clx1a2b3c4d5e6f7g8h9i0j1k \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+```
+
+## Notes
+
+- After deleting a message, the scheduler automatically reschedules all remaining pending messages
+- If the message ID doesn't exist, a 500 error will be returned
+- This action is permanent and cannot be undone

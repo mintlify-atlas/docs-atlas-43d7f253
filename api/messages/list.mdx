@@ -1,0 +1,90 @@
+---
+title: 'List All Messages'
+api: 'GET /messages/all'
+---
+
+Retrieve all scheduled messages with recipient details, ordered by send time.
+
+## Authentication
+
+This endpoint requires Basic Authentication.
+
+<ParamField header="Authorization" type="string" required>
+  Basic Auth credentials in the format `Basic base64(username:password)`
+</ParamField>
+
+## Response
+
+<ResponseField name="messages" type="array">
+  Array of message objects
+  
+  <ResponseField name="id" type="string">
+    Unique message identifier
+  </ResponseField>
+  
+  <ResponseField name="content" type="string">
+    Message content to be sent
+  </ResponseField>
+  
+  <ResponseField name="sendToPhone" type="string">
+    Recipient's phone number
+  </ResponseField>
+  
+  <ResponseField name="sendAfter" type="number">
+    Number of days after which to send the message
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    ISO 8601 timestamp when message was created
+  </ResponseField>
+  
+  <ResponseField name="sendTo" type="object">
+    Recipient details
+    
+    <ResponseField name="name" type="string">
+      Recipient's name
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+### Success Response
+
+```json
+[
+  {
+    "id": "clx1a2b3c4d5e6f7g8h9i0j1k",
+    "content": "Happy Birthday! Wishing you all the best.",
+    "sendToPhone": "+1234567890",
+    "sendAfter": 7,
+    "createdAt": "2026-03-05T10:30:00.000Z",
+    "sendTo": {
+      "name": "John Doe"
+    }
+  },
+  {
+    "id": "clx2b3c4d5e6f7g8h9i0j1k2l",
+    "content": "Reminder: Meeting tomorrow at 3 PM",
+    "sendToPhone": "+0987654321",
+    "sendAfter": 1,
+    "createdAt": "2026-03-04T14:20:00.000Z",
+    "sendTo": {
+      "name": "Jane Smith"
+    }
+  }
+]
+```
+
+### Error Response
+
+```json
+{
+  "message": "Failed to fetch messages"
+}
+```
+
+## Example Request
+
+```bash
+curl -X GET https://your-api.com/messages/all \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+```

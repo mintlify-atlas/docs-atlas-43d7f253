@@ -1,0 +1,500 @@
+---
+title: 'Authentication'
+description: 'Secure your WhatsApp Message Scheduler API with HTTP Basic Authentication'
+---
+
+The WhatsApp Message Scheduler uses **HTTP Basic Authentication** to protect all API endpoints. This guide explains how authentication works and how to configure it properly.
+
+## Overview
+
+Basic Authentication is implemented using Hono's `basicAuth` middleware, which protects all message and people management endpoints.
+
+<Note>
+  All routes under `/messages/*` and `/people/*` require authentication. The root endpoint `/` is publicly accessible for health checks.
+</Note>
+
+## How It Works
+
+### Authentication Flow
+
+<Steps>
+  <Step title="Client Sends Request">
+    The client makes an HTTP request with an `Authorization` header:
+    
+    ```http
+    GET /messages/all HTTP/1.1
+    Host: localhost:3000
+    Authorization: Basic dXNlcjpwYXNz
+    ```
+    
+    The value after `Basic` is a Base64-encoded string of `username:password`.
+  </Step>
+
+  <Step title="Server Validates Credentials">
+    The `basicAuth` middleware decodes the header and compares credentials:
+    
+    ```typescript src/routes/messages.ts
+    const messagesRoutes = new Hono().use(
+      basicAuth({
+        username: Bun.env.USERNAME || "user",
+        password: Bun.env.PASSWORD || "pass",
+      })
+    );
+    ```
+  </Step>
+
+  <Step title="Access Granted or Denied">
+    - **Valid credentials:** Request proceeds to the route handler
+    - **Invalid credentials:** Returns `401 Unauthorized` response
+    
+    ```json
+    {
+      "message": "Unauthorized"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Setting Up Authentication
+
+### 1. Configure Credentials
+
+Set your username and password in the `.env` file:
+
+```bash .env
+USERNAME=your_username
+PASWORD=your_secure_password
+```
+
+<Warning>
+  **Security Best Practices:**
+  - Use a strong password (16+ characters)
+  - Include uppercase, lowercase, numbers, and special characters
+  - Never commit `.env` to version control
+  - Use different credentials for development and production
+  - Rotate credentials regularly
+</Warning>
+
+### 2. Verify Configuration
+
+The credentials are applied to all protected routes:
+
+<CodeGroup>
+```typescript src/routes/messages.ts
+import { Hono } from "hono";
+import { basicAuth } from "hono/basic-auth";
+
+const messagesRoutes = new Hono().use(
+  basicAuth({
+    username: Bun.env.USERNAME || "user",
+    password: Bun.env.PASSWORD || "pass",
+  })
+);
+
+// All routes below are protected
+messagesRoutes.get("/all", async (c) => {
+  // Only accessible with valid credentials
+});
+
+messagesRoutes.post("/create-one", async (c) => {
+  // Only accessible with valid credentials
+});
+```
+
+```typescript src/routes/people.ts
+import { Hono } from "hono";
+import { basicAuth } from "hono/basic-auth";
+
+const peopleRoutes = new Hono().use(
+  basicAuth({
+    username: Bun.env.USERNAME || "user",
+    password: Bun.env.PASSWORD || "pass",
+  })
+);
+
+// All routes below are protected
+peopleRoutes.get("/all", async (c) => {
+  // Only accessible with valid credentials
+});
+
+peopleRoutes.post("/create-one", async (c) => {
+  // Only accessible with valid credentials
+});
+```
+</CodeGroup>
+
+## Making Authenticated Requests
+
+### Using cURL
+
+The simplest way to authenticate with cURL is using the `-u` flag:
+
+```bash
+curl -u username:password http://localhost:3000/messages/all
+```
+
+Alternatively, manually encode credentials:
+
+```bash
+# Encode credentials to Base64
+echo -n "username:password" | base64
+# Output: dXNlcm5hbWU6cGFzc3dvcmQ=
+
+# Use in Authorization header
+curl -H "Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=" \
+  http://localhost:3000/messages/all
+```
+
+### Using JavaScript (Fetch API)
+
+```javascript
+const username = 'your_username';
+const password = 'your_password';
+const credentials = btoa(`${username}:${password}`);
+
+fetch('http://localhost:3000/messages/all', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Basic ${credentials}`,
+    'Content-Type': 'application/json'
+  }
+})
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error('Error:', error));
+```
+
+### Using Axios
+
+```javascript
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:3000',
+  auth: {
+    username: 'your_username',
+    password: 'your_password'
+  }
+});
+
+// Now all requests include authentication
+api.get('/messages/all')
+  .then(response => console.log(response.data))
+  .catch(error => console.error('Error:', error));
+```
+
+### Using Postman
+
+<Steps>
+  <Step title="Open Authorization Tab">
+    In your request, navigate to the **Authorization** tab
+  </Step>
+
+  <Step title="Select Basic Auth">
+    From the **Type** dropdown, select **Basic Auth**
+  </Step>
+
+  <Step title="Enter Credentials">
+    - **Username:** Enter your configured username
+    - **Password:** Enter your configured password
+  </Step>
+
+  <Step title="Send Request">
+    Postman automatically adds the `Authorization` header to your request
+  </Step>
+</Steps>
+
+### Using Frontend (Next.js Example)
+
+Create an API client with authentication:
+
+```typescript lib/api.ts
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
+const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
+
+const authHeader = () => {
+  const credentials = btoa(`${API_USERNAME}:${API_PASSWORD}`);
+  return `Basic ${credentials}`;
+};
+
+export const api = {
+  async getMessages() {
+    const response = await fetch(`${API_BASE_URL}/messages/all`, {
+      headers: {
+        'Authorization': authHeader(),
+      },
+    });
+    return response.json();
+  },
+
+  async createMessage(data: MessageData) {
+    const response = await fetch(`${API_BASE_URL}/messages/create-one`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
+};
+```
+
+## Protected Endpoints
+
+All endpoints under these routes require authentication:
+
+### Message Endpoints
+
+- `GET /messages/all` - List all scheduled messages
+- `GET /messages/read-one/:id` - Get a specific message
+- `POST /messages/create-one` - Create a new message
+- `POST /messages/update-one/:id` - Update a message
+- `POST /messages/delete-one/:id` - Delete a message
+- `POST /messages/send-instant` - Send instant message
+- `GET /messages/reschedule` - Reschedule all messages
+
+### People Endpoints
+
+- `GET /people/all` - List all contacts
+- `GET /people/read-one/:id` - Get a specific contact
+- `POST /people/create-one` - Create a new contact
+- `POST /people/update-one/:id` - Update a contact
+- `POST /people/delete-one/:id` - Delete a contact
+
+### Public Endpoints
+
+These endpoints do NOT require authentication:
+
+- `GET /` - Server health check
+- `GET /time-left` - Get time until next scheduled message
+
+## Testing Authentication
+
+### Test Valid Credentials
+
+```bash
+curl -u user:pass http://localhost:3000/messages/all
+```
+
+Expected response (200 OK):
+```json
+[
+  {
+    "id": "cm8o25tal0000z9ixnxdse565",
+    "content": "Hello!",
+    "sendToPhone": "8801234567890",
+    "sendAfter": 1,
+    "createdAt": "2024-01-15T10:30:00.000Z"
+  }
+]
+```
+
+### Test Invalid Credentials
+
+```bash
+curl -u wrong:credentials http://localhost:3000/messages/all
+```
+
+Expected response (401 Unauthorized):
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+### Test Missing Credentials
+
+```bash
+curl http://localhost:3000/messages/all
+```
+
+Expected response (401 Unauthorized):
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+## Security Considerations
+
+<Warning>
+  **Important Security Notes:**
+  
+  Basic Authentication sends credentials in Base64 encoding, which is **NOT encryption**. Base64 is easily decoded.
+</Warning>
+
+### Use HTTPS in Production
+
+Always use HTTPS to encrypt credentials in transit:
+
+```bash
+# ❌ Insecure (credentials visible in transit)
+http://api.example.com/messages/all
+
+# ✅ Secure (credentials encrypted)
+https://api.example.com/messages/all
+```
+
+### Environment-Specific Credentials
+
+Use different credentials for each environment:
+
+<CodeGroup>
+```bash .env.development
+USERNAME=dev_user
+PASWORD=dev_password_123
+```
+
+```bash .env.production
+USERNAME=prod_admin_2024
+PASWORD=H8$kL#9mP@2vQ!xR&5wT^4nY
+```
+</CodeGroup>
+
+### Credential Rotation
+
+Regularly update your credentials:
+
+1. Generate a new strong password
+2. Update `.env` file
+3. Restart the server
+4. Update all client applications
+5. Monitor for failed authentication attempts
+
+### Additional Security Measures
+
+<Accordion title="Rate Limiting">
+  Implement rate limiting to prevent brute-force attacks:
+  
+  ```typescript
+  import { rateLimiter } from 'hono-rate-limiter';
+  
+  app.use(
+    rateLimiter({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // max 100 requests per window
+      message: 'Too many requests, please try again later.',
+    })
+  );
+  ```
+</Accordion>
+
+<Accordion title="IP Whitelisting">
+  Restrict access to specific IP addresses:
+  
+  ```typescript
+  const allowedIPs = ['192.168.1.100', '10.0.0.50'];
+  
+  app.use('*', async (c, next) => {
+    const clientIP = c.req.header('x-forwarded-for') || c.req.raw.headers.get('x-real-ip');
+    if (!allowedIPs.includes(clientIP)) {
+      return c.json({ message: 'Forbidden' }, 403);
+    }
+    await next();
+  });
+  ```
+</Accordion>
+
+<Accordion title="API Keys (Alternative)">
+  For better security, consider using API keys instead of Basic Auth:
+  
+  ```typescript
+  import { bearerAuth } from 'hono/bearer-auth';
+  
+  const messagesRoutes = new Hono().use(
+    bearerAuth({
+      token: Bun.env.API_KEY,
+    })
+  );
+  ```
+  
+  Usage:
+  ```bash
+  curl -H "Authorization: Bearer YOUR_API_KEY" \
+    http://localhost:3000/messages/all
+  ```
+</Accordion>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized with Correct Credentials">
+    **Possible causes:**
+    
+    1. Credentials have trailing spaces in `.env`:
+       ```bash
+       # ❌ Wrong (space after password)
+       PASSWORD=mypassword 
+       
+       # ✅ Correct
+       PASSWORD=mypassword
+       ```
+    
+    2. Server not restarted after changing `.env`:
+       ```bash
+       bun run start
+       ```
+    
+    3. Credentials not Base64-encoded properly:
+       ```bash
+       # Verify encoding
+       echo -n "username:password" | base64
+       ```
+  </Accordion>
+
+  <Accordion title="Credentials Not Loading from .env">
+    **Solutions:**
+    
+    1. Verify `.env` file location (must be in project root)
+    2. Check file is named exactly `.env`
+    3. Ensure no quotes around values:
+       ```bash
+       # ❌ Wrong
+       USERNAME="user"
+       
+       # ✅ Correct
+       USERNAME=user
+       ```
+    4. Access with `Bun.env.USERNAME` not `process.env.USERNAME`
+  </Accordion>
+
+  <Accordion title="Frontend Can't Authenticate">
+    **Common issues:**
+    
+    1. **CORS errors:** Enable CORS in your backend:
+       ```typescript
+       import { cors } from 'hono/cors';
+       app.use('*', cors());
+       ```
+    
+    2. **Environment variables not loaded:**
+       ```javascript
+       // Check if credentials are loaded
+       console.log(process.env.NEXT_PUBLIC_API_USERNAME);
+       ```
+    
+    3. **Credentials not prefixed with NEXT_PUBLIC_:**
+       ```bash
+       # In Next.js, use NEXT_PUBLIC_ prefix
+       NEXT_PUBLIC_API_USERNAME=user
+       NEXT_PUBLIC_API_PASSWORD=pass
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore all authenticated endpoints
+  </Card>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn about all environment variables
+  </Card>
+  <Card title="Messages API" icon="message" href="/api/messages/list">
+    Learn about message scheduling endpoints
+  </Card>
+</CardGroup>

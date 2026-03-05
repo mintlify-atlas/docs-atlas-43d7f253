@@ -1,80 +1,340 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get your WhatsApp Message Scheduler instance running in minutes
 ---
 
-## Get started in three steps
+This guide will help you set up and run the WhatsApp Message Scheduler service from scratch. By the end, you'll have a fully functional API connected to your WhatsApp account.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- **Bun** installed (v1.0 or higher) - [Install Bun](https://bun.sh/)
+- **A Redis instance** - You can get a free Redis database from [Upstash](https://upstash.com/)
+- **A WhatsApp account** on your mobile device for QR code scanning
+- **Git** for cloning the repository
+
+<Warning>
+This service requires access to WhatsApp Web. Make sure your WhatsApp account is active and you have access to your phone for QR code scanning during initial setup.
+</Warning>
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the project to your local machine:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    git clone https://github.com/yourusername/whatsapp-message-scheduler.git
+    cd whatsapp-message-scheduler
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Use Bun to install all required packages:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    ```bash
+    bun install
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    This will install:
+    - Hono (web framework)
+    - Prisma (database ORM)
+    - BullMQ (job queue)
+    - whatsapp-web.js (WhatsApp client)
+    - Other necessary dependencies
+    
+    <Note>
+    The `postinstall` script will automatically run `prisma generate` to generate the Prisma client.
+    </Note>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Set up Redis">
+    Get your Redis connection URL from Upstash:
+    
+    1. Sign up at [Upstash](https://upstash.com/)
+    2. Create a new Redis database
+    3. Copy the REST URL from the dashboard
+    
+    You'll need this URL for the next step.
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Configure environment variables">
+    Create an `.env` file in the root directory:
+    
+    ```bash
+    touch .env
+    ```
+    
+    Add the following configuration:
+    
+    ```env
+    PORT=3000
+    DATABASE_URL="file:./dev.db"
+    REDIS_REST_URL="your_redis_url_here"
+    USERNAME=user
+    PASSWORD=pass
+    ```
+    
+    <CodeGroup>
+    ```env Production
+    PORT=3000
+    DATABASE_URL="file:./prod.db"
+    REDIS_REST_URL="https://your-redis.upstash.io"
+    USERNAME=admin
+    PASSWORD=your_secure_password
+    ```
+    
+    ```env Development
+    PORT=3000
+    DATABASE_URL="file:./dev.db"
+    REDIS_REST_URL="http://localhost:6379"
+    USERNAME=user
+    PASSWORD=pass
+    ```
+    </CodeGroup>
+    
+    <Warning>
+    **Security Notice**: Change the default `USERNAME` and `PASSWORD` values before deploying to production. These credentials protect your API endpoints with basic authentication.
+    </Warning>
+  </Step>
 
-### Step 3: Go live
+  <Step title="Initialize the database">
+    Run Prisma migrations to set up your SQLite database:
+    
+    ```bash
+    bunx prisma migrate dev --name init
+    ```
+    
+    This creates the database schema with three tables:
+    - `AdminProfile` - Stores admin information and last check-in time
+    - `People` - Manages contacts with names and phone numbers
+    - `Message` - Stores scheduled messages
+  </Step>
+</Steps>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+## Running the Server
 
-## Next steps
+<Steps>
+  <Step title="Start the server">
+    Launch the application with:
+    
+    ```bash
+    bun run start
+    ```
+    
+    You'll see output similar to:
+    
+    ```
+    [QR RECEIVED]
+    ```
+    
+    Followed by a QR code displayed in your terminal.
+  </Step>
 
-Now that you have your docs running, explore these key features:
+  <Step title="Scan the QR code">
+    1. Open WhatsApp on your mobile device
+    2. Go to **Settings** → **Linked Devices**
+    3. Tap **Link a Device**
+    4. Scan the QR code displayed in your terminal
+    
+    <Note>
+    The QR code expires after a short time. If it expires, restart the server to generate a new one.
+    </Note>
+  </Step>
+
+  <Step title="Verify connection">
+    Once successfully connected, you'll see:
+    
+    ```
+    [CLIENT]: WhatsApp client is ready.
+    [WORKER]: Ready!
+    [SERVER]: Running on http://localhost:3000
+    ```
+    
+    You should also receive a WhatsApp message on your phone:
+    
+    > Backend Server Started successfully! 🚀
+    
+    <Note>
+    The confirmation message is sent to the phone number configured in `src/server.ts:34`. You may want to update this to your own number or remove this line.
+    </Note>
+  </Step>
+</Steps>
+
+## Testing Your Installation
+
+Let's verify everything is working by testing the API endpoints.
+
+<Steps>
+  <Step title="Check server health">
+    Test the base endpoint:
+    
+    ```bash
+    curl http://localhost:3000/
+    ```
+    
+    Expected response:
+    
+    ```json
+    {
+      "message": "Backend Server is running !!!"
+    }
+    ```
+  </Step>
+
+  <Step title="Create a contact">
+    Add a contact to your database (requires authentication):
+    
+    ```bash
+    curl -X POST http://localhost:3000/people/create-one \
+      -u user:pass \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "John Doe",
+        "phone": "1234567890123"
+      }'
+    ```
+    
+    <Warning>
+    Phone numbers must be exactly 13 characters long, formatted as country code + number (e.g., `8801234567890` for Bangladesh).
+    </Warning>
+    
+    Expected response:
+    
+    ```json
+    {
+      "message": "Person created successfully"
+    }
+    ```
+  </Step>
+
+  <Step title="Schedule a message">
+    Create a scheduled message:
+    
+    ```bash
+    curl -X POST http://localhost:3000/messages/create-one \
+      -u user:pass \
+      -H "Content-Type: application/json" \
+      -d '{
+        "content": "Hello from WhatsApp Message Scheduler!",
+        "sendToPhone": "1234567890123",
+        "sendAfter": 1
+      }'
+    ```
+    
+    The `sendAfter` field represents days from the last admin check-in. Messages scheduled for 1 day will be sent 24 hours after the reference timestamp.
+    
+    Expected response:
+    
+    ```json
+    {
+      "message": "Message created successfully"
+    }
+    ```
+  </Step>
+
+  <Step title="Send an instant message">
+    Test immediate message delivery:
+    
+    ```bash
+    curl -X POST http://localhost:3000/messages/send-instant \
+      -u user:pass \
+      -H "Content-Type: application/json" \
+      -d '{
+        "content": "Test message",
+        "sendToPhone": "1234567890123"
+      }'
+    ```
+    
+    The message should arrive immediately on WhatsApp.
+  </Step>
+</Steps>
+
+## Development Mode
+
+For active development with hot reload:
+
+```bash
+bun run dev
+```
+
+This uses the `--hot` flag to automatically restart the server when files change.
+
+## Next Steps
+
+Now that your server is running, explore these resources:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Complete documentation of all available endpoints
+  </Card>
+  
+  <Card title="Messages API" icon="message" href="/api/messages/list">
+    Learn about message scheduling and management
+  </Card>
+  
+  <Card title="People API" icon="users" href="/api/people/list">
+    Manage contacts and phone numbers
+  </Card>
+  
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand the system design and components
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="QR code not appearing">
+    Make sure:
+    - Your terminal supports UTF-8 encoding
+    - No firewall is blocking WhatsApp Web connections
+    - You have a stable internet connection
+    
+    Try restarting the server if the QR code doesn't appear within 10 seconds.
+  </Accordion>
+  
+  <Accordion title="Messages not being sent">
+    Check that:
+    - The WhatsApp client shows as `[CLIENT]: WhatsApp client is ready.`
+    - Redis connection is working (check the `REDIS_REST_URL` in your `.env`)
+    - The phone number format is correct (13 characters)
+    - The contact exists in your `People` table before scheduling messages
+  </Accordion>
+  
+  <Accordion title="Authentication failing">
+    Verify that:
+    - You're using the correct `USERNAME` and `PASSWORD` from your `.env` file
+    - Basic auth is properly formatted: `username:password`
+    - The credentials are base64 encoded in the Authorization header
+    
+    Example with correct formatting:
+    ```bash
+    curl -u user:pass http://localhost:3000/people/all
+    ```
+  </Accordion>
+  
+  <Accordion title="Database errors">
+    If you encounter Prisma errors:
+    
+    ```bash
+    # Regenerate Prisma client
+    bunx prisma generate
+    
+    # Reset database (warning: deletes all data)
+    bunx prisma migrate reset
+    
+    # View your data
+    bunx prisma studio
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Need Help?
+
+If you encounter issues not covered here:
+
+- Check the [GitHub Issues](https://github.com/anupom69/bun-hono-backend) for similar problems
+- Review the server logs for detailed error messages
+- Ensure all prerequisites are correctly installed and configured

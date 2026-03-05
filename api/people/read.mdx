@@ -1,0 +1,76 @@
+---
+title: "Get Person"
+api: "GET /people/read-one/:id"
+description: "Retrieve a specific person by ID"
+---
+
+This endpoint retrieves a single person by their unique ID.
+
+## Authentication
+
+This endpoint requires Basic Authentication. Include the credentials in the Authorization header.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier (cuid) of the person to retrieve
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  Unique identifier (cuid)
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Person's name
+</ResponseField>
+
+<ResponseField name="phone" type="string">
+  Person's phone number (13 characters)
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET https://your-domain.com/people/read-one/clx1234567890abcdefgh \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+```
+
+## Example Response
+
+### 200 Success
+
+```json
+{
+  "id": "clx1234567890abcdefgh",
+  "name": "John Doe",
+  "phone": "+12345678901"
+}
+```
+
+### Person Not Found
+
+If the person does not exist, the response will be:
+
+```json
+null
+```
+
+## Error Responses
+
+### 401 Unauthorized
+
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+### 500 Internal Server Error
+
+```json
+{
+  "message": "Failed to fetch person"
+}
+```

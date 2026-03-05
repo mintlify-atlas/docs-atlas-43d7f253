@@ -1,0 +1,163 @@
+---
+title: "API Overview"
+description: "Complete reference for the WhatsApp Message Scheduler API endpoints"
+---
+
+## Base URL
+
+All API requests should be made to:
+
+```
+http://your-server-url/
+```
+
+## Authentication
+
+The API uses **HTTP Basic Authentication** for protected routes. You need to provide credentials for all `/messages` and `/people` endpoints.
+
+Credentials are configured via environment variables:
+- Username: `USERNAME` (defaults to "user")
+- Password: `PASSWORD` (defaults to "pass")
+
+### Example Authenticated Request
+
+```bash
+curl -X GET http://your-server-url/messages/all \
+  -u username:password \
+  -H "Content-Type: application/json"
+```
+
+Or using the Authorization header:
+
+```bash
+curl -X GET http://your-server-url/messages/all \
+  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+  -H "Content-Type: application/json"
+```
+
+## Available Endpoints
+
+### Messages
+
+All message endpoints require authentication and are prefixed with `/messages`.
+
+<CardGroup cols={2}>
+  <Card title="List All Messages" icon="list" href="/api/messages/list">
+    Get all scheduled messages with recipient details
+  </Card>
+  <Card title="Create Message" icon="plus" href="/api/messages/create">
+    Schedule a new WhatsApp message
+  </Card>
+  <Card title="Get Message" icon="magnifying-glass" href="/api/messages/read">
+    Retrieve a specific message by ID
+  </Card>
+  <Card title="Update Message" icon="pen" href="/api/messages/update">
+    Modify an existing scheduled message
+  </Card>
+  <Card title="Delete Message" icon="trash" href="/api/messages/delete">
+    Remove a scheduled message
+  </Card>
+  <Card title="Reschedule Messages" icon="clock" href="/api/messages/reschedule">
+    Trigger rescheduling of all messages
+  </Card>
+  <Card title="Send Instant Message" icon="paper-plane" href="/api/messages/send-instant">
+    Send a message immediately without scheduling
+  </Card>
+</CardGroup>
+
+#### Endpoints Summary
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/messages/all` | List all messages with recipient details |
+| POST | `/messages/create-one` | Create a new scheduled message |
+| GET | `/messages/read-one/:id` | Get a specific message by ID |
+| POST | `/messages/update-one/:id` | Update a scheduled message |
+| POST | `/messages/delete-one/:id` | Delete a scheduled message |
+| GET | `/messages/reschedule` | Reschedule all pending messages |
+| POST | `/messages/send-instant` | Send a message immediately |
+
+### People
+
+All people endpoints require authentication and are prefixed with `/people`.
+
+<CardGroup cols={2}>
+  <Card title="List All People" icon="users" href="/api/people/list">
+    Get all contacts in the system
+  </Card>
+  <Card title="Create Person" icon="user-plus" href="/api/people/create">
+    Add a new contact
+  </Card>
+  <Card title="Get Person" icon="user" href="/api/people/read">
+    Retrieve a specific contact by ID
+  </Card>
+  <Card title="Update Person" icon="user-pen" href="/api/people/update">
+    Modify an existing contact
+  </Card>
+  <Card title="Delete Person" icon="user-minus" href="/api/people/delete">
+    Remove a contact from the system
+  </Card>
+</CardGroup>
+
+#### Endpoints Summary
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/people/all` | List all contacts |
+| POST | `/people/create-one` | Create a new contact |
+| GET | `/people/read-one/:id` | Get a specific contact by ID |
+| POST | `/people/update-one/:id` | Update a contact |
+| POST | `/people/delete-one/:id` | Delete a contact |
+
+### Public Endpoints
+
+These endpoints do not require authentication:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Health check - confirms server is running |
+| GET | `/time-left` | Calculate time until next scheduled message |
+
+## Response Format
+
+All endpoints return JSON responses with appropriate HTTP status codes:
+
+- `200` - Success
+- `400` - Bad Request (missing or invalid parameters)
+- `404` - Not Found
+- `500` - Internal Server Error
+
+### Success Response Example
+
+```json
+{
+  "message": "Message created successfully"
+}
+```
+
+### Error Response Example
+
+```json
+{
+  "message": "Missing required fields"
+}
+```
+
+## Rate Limiting
+
+Currently, there are no rate limits enforced on the API. However, it's recommended to implement rate limiting in production environments.
+
+## CORS
+
+Configure CORS settings according to your deployment requirements. The default Hono setup does not include CORS middleware.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Messages API" icon="message" href="/api/messages/create">
+    Learn how to schedule and manage WhatsApp messages
+  </Card>
+  <Card title="People API" icon="users" href="/api/people/create">
+    Manage your contact list
+  </Card>
+</CardGroup>

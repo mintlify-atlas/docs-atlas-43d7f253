@@ -1,0 +1,344 @@
+---
+title: Message Scheduling
+description: How the BullMQ job queue manages delayed message delivery and rescheduling
+---
+
+## Overview
+
+The WhatsApp Message Scheduler uses BullMQ, a Redis-backed job queue, to schedule messages for future delivery. This system handles delay calculation, job persistence, and automatic rescheduling.
+
+## How It Works
+
+### 1. Message Queue Setup
+
+The message queue is initialized with a Redis connection:
+
+```typescript src/queues/messageQueue.ts
+import { Queue } from "bullmq";
+import { redisConfig } from "../config/redis";
+
+export const messageQueue = new Queue("messageQueue", {
+  connection: redisConfig,
+});
+```
+
+<Info>
+BullMQ stores all job data in Redis, which means scheduled messages persist even if the server restarts.
+</Info>
+
+### 2. Scheduling Messages
+
+The `scheduleMessages()` function is the core of the scheduling system:
+
+```typescript src/services/scheduler.ts
+export async function scheduleMessages() {
+  try {
+    // Clear existing jobs
+    await messageQueue.obliterate({ force: true });
+
+    const [messages, timeLeft] = await Promise.all([
+      prisma.message.findMany(),
+      leftTimeMsCounter(),
+      prisma.adminProfile.update({
+        where: { id: "cm8o25tal0000z9ixnxdse565" },
+        data: { lastCheckIn: new Date() },
+      }),
+    ]);
+
+    // Schedule all messages in parallel
+    await Promise.all([
+      ...messages.map((message) => {
+        const jobId = `message-${message.id}`;
+        const sendAfterMs = daysToMs(message.sendAfter);
+        return messageQueue.add(
+          jobId,
+          { content: message.content, sendToPhone: message.sendToPhone },
+          {
+            jobId,
+            delay: sendAfterMs,
+          }
+        );
+      }),
+      // Schedule reminder message
+      messageQueue.add(
+        "message-reschedule",
+        {
+          content:
+            "You have 3.5 hours left to reschedule messages or I think you are dead",
+          sendToPhone: "8801884510919",
+        },
+        {
+          jobId: "message-reschedule",
+          delay: timeLeft - 3.5 * 3600 * 1000,
+        }
+      ),
+    ]);
+  } catch (error) {
+    handleError(error, "scheduling messages");
+  }
+}
+```
+
+### 3. Delay Calculation
+
+Messages store their delay in **days** (as a float), which gets converted to milliseconds:
+
+```typescript src/utils/daysToMs.ts
+export const daysToMs = (days: number | string) => 
+  Number(days) * 24 * 60 * 60 * 1000;
+```
+
+**Example conversions:**
+- `1 day` → `86,400,000 ms`
+- `0.5 days` (12 hours) → `43,200,000 ms`
+- `0.000115741 days` (10 seconds) → `10,000 ms`
+
+<Note>
+The database stores `sendAfter` as a Float, allowing for precise scheduling down to millisecond precision when needed.
+</Note>
+
+## Time-Left Calculation
+
+The system tracks when the admin last "checked in" and calculates time remaining until the earliest message should be sent:
+
+```typescript src/functions/leftTimeMsCounter.ts
+export const leftTimeMsCounter = async () => {
+  const adminProfile = await prisma.adminProfile.findUnique({
+    where: { id: "cm8o25tal0000z9ixnxdse565" },
+  });
+
+  if (!adminProfile || !adminProfile.lastCheckIn) {
+    return 0;
+  }
+
+  const messages = await prisma.message.findMany();
+  if (messages.length === 0) {
+    return 0;
+  }
+
+  // Find the message with the smallest delay
+  const leastSendAfterMessage = messages.reduce((prev, current) =>
+    prev.sendAfter < current.sendAfter ? prev : current
+  );
+
+  const leastSendAfter = leastSendAfterMessage.sendAfter;
+  const lastCheckInTime = new Date(adminProfile.lastCheckIn).getTime();
+  const targetTime = lastCheckInTime + leastSendAfter * 24 * 60 * 60 * 1000;
+
+  const timeLeftMs = targetTime - Date.now();
+
+  return timeLeftMs;
+};
+```
+
+### REST API Endpoint
+
+There's also a REST endpoint to check time remaining:
+
+```typescript src/app.ts
+app.get("/time-left", async (c: Context) => {
+  const adminProfile = await prisma.adminProfile.findUnique({
+    where: { id: "cm8o25tal0000z9ixnxdse565" },
+  });
+
+  if (!adminProfile || !adminProfile.lastCheckIn) {
+    return c.json(
+      { message: "Admin profile not found or missing last check-in" },
+      404
+    );
+  }
+
+  const messages = await prisma.message.findMany();
+  if (messages.length === 0) {
+    return c.json({ message: "No messages found" }, 404);
+  }
+
+  const leastSendAfterMessage = messages.reduce((prev, current) =>
+    prev.sendAfter < current.sendAfter ? prev : current
+  );
+
+  const leastSendAfter = leastSendAfterMessage.sendAfter;
+  const lastCheckInTime = new Date(adminProfile.lastCheckIn).getTime();
+  const targetTime = lastCheckInTime + leastSendAfter * 24 * 60 * 60 * 1000;
+
+  const timeLeftMs = targetTime - Date.now();
+  const timeLeftHours = timeLeftMs / (1000 * 60 * 60);
+
+  return c.json({ timeLeft: timeLeftHours.toFixed(2) }, 200);
+});
+```
+
+<Tip>
+Access `GET /time-left` to see how many hours remain until the next scheduled message.
+</Tip>
+
+## Job Processing
+
+The worker processes jobs when their delay expires:
+
+```typescript src/server.ts
+const worker = new Worker(
+  "messageQueue",
+  async (job) => {
+    try {
+      await sendMessage(job.data.sendToPhone, job.data.content);
+    } catch (error) {
+      console.error("[WORKER ERROR]: Failed to send message", error);
+    }
+  },
+  { connection: redisConfig, concurrency: 1 }
+);
+
+worker.on("ready", () => {
+  console.log("[WORKER]: Ready!");
+});
+
+worker.on("error", (error) => {
+  console.error("[WORKER ERROR]:", error);
+});
+```
+
+### Job Data Structure
+
+Each job in the queue contains:
+
+```typescript
+{
+  content: string,        // Message text
+  sendToPhone: string,    // Recipient phone number
+}
+```
+
+### Job Options
+
+```typescript
+{
+  jobId: string,          // Unique identifier (e.g., "message-abc123")
+  delay: number,          // Milliseconds to wait before processing
+}
+```
+
+<Info>
+The `jobId` ensures that rescheduling the same message replaces the existing job rather than creating a duplicate.
+</Info>
+
+## Rescheduling Process
+
+### When Rescheduling Occurs
+
+Rescheduling happens when:
+1. The server restarts (triggered in `startServer()`)
+2. A new message is created or updated
+3. The admin manually triggers a reschedule
+
+### Rescheduling Steps
+
+1. **Clear Queue**: `await messageQueue.obliterate({ force: true })`
+   - Removes all existing jobs
+   - Prevents duplicate messages
+
+2. **Update Check-In**: Updates `lastCheckIn` timestamp in admin profile
+   - Resets the countdown timer
+
+3. **Recalculate Delays**: Fetches all messages and calculates fresh delays
+
+4. **Add Jobs**: Schedules all messages with new delays
+
+<Warning>
+Rescheduling clears ALL pending jobs. Any messages that were about to be sent will have their delays recalculated from the new check-in time.
+</Warning>
+
+## Special Messages
+
+### Startup Notification
+
+Sent immediately when the server starts:
+
+```typescript src/server.ts
+await sendMessage("8801884510919", "Backend Server Started successfully! 🚀");
+```
+
+### Reschedule Reminder
+
+Warns the admin 3.5 hours before the earliest message:
+
+```typescript src/services/scheduler.ts
+messageQueue.add(
+  "message-reschedule",
+  {
+    content: "You have 3.5 hours left to reschedule messages or I think you are dead",
+    sendToPhone: "8801884510919",
+  },
+  {
+    jobId: "message-reschedule",
+    delay: timeLeft - 3.5 * 3600 * 1000,
+  }
+);
+```
+
+### Test Message
+
+Sends a test message 10 seconds after scheduling:
+
+```typescript src/services/scheduler.ts
+messageQueue.add(
+  "message-delay-testing",
+  {
+    content: "Worker is running [Should send after 10 seconds]",
+    sendToPhone: "8801884510919",
+  },
+  {
+    jobId: "message-delay-testing",
+    delay: daysToMs(0.000115741), // ~10 seconds
+  }
+);
+```
+
+## Monitoring and Debugging
+
+BullMQ provides several methods to inspect queue state:
+
+```typescript
+// Get all jobs
+const jobs = await messageQueue.getJobs();
+
+// Get job by ID
+const job = await messageQueue.getJob("message-abc123");
+
+// Get job counts
+const counts = await messageQueue.getJobCounts();
+// Returns: { waiting, active, completed, failed, delayed }
+```
+
+<Tip>
+Add these inspection methods to your API routes for real-time queue monitoring.
+</Tip>
+
+## Best Practices
+
+1. **Use Unique Job IDs**: Prevents duplicate scheduled messages
+2. **Handle Worker Errors**: Always wrap message sending in try-catch
+3. **Set Concurrency**: Use `concurrency: 1` to avoid rate limits
+4. **Monitor Queue Health**: Check for failed jobs regularly
+5. **Graceful Shutdown**: Close worker and queue connections on exit
+
+## Performance Considerations
+
+- **Parallel Scheduling**: Messages are added to the queue in parallel using `Promise.all()`
+- **Obliterate vs Remove**: `obliterate()` is more efficient than removing jobs individually
+- **Redis Connection**: Reuse the same Redis connection for queue and worker
+
+<Note>
+The current implementation schedules all messages in memory before adding to the queue. For thousands of messages, consider batching.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand the overall system design
+  </Card>
+  <Card title="WhatsApp Integration" icon="whatsapp" href="/concepts/whatsapp-integration">
+    Learn about WhatsApp message delivery
+  </Card>
+</CardGroup>

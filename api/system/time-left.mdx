@@ -1,0 +1,87 @@
+---
+title: "Time Left"
+api: "GET /time-left"
+---
+
+Calculates the time remaining (in hours) until the next scheduled message should be sent. This endpoint helps monitor when the user should next check in to send pending messages.
+
+## Authentication
+
+This endpoint does **not** require authentication.
+
+## How It Works
+
+The calculation follows these steps:
+
+1. Retrieves the admin profile's `lastCheckIn` timestamp
+2. Finds the message with the **smallest** `sendAfter` value (in days)
+3. Calculates the target time: `lastCheckIn + (leastSendAfter × 24 hours)`
+4. Returns the difference between target time and current time in hours
+
+### Calculation Formula
+
+```
+targetTime = lastCheckIn + (leastSendAfter × 24 × 60 × 60 × 1000)
+timeLeftMs = targetTime - Date.now()
+timeLeftHours = timeLeftMs / (1000 × 60 × 60)
+```
+
+## Response
+
+<ResponseField name="timeLeft" type="string" required>
+  Time remaining in hours (formatted to 2 decimal places)
+</ResponseField>
+
+## Example Response
+
+### Success
+
+```json
+{
+  "timeLeft": "23.45"
+}
+```
+
+### Error Responses
+
+```json Admin Profile Not Found
+{
+  "message": "Admin profile not found or missing last check-in"
+}
+```
+
+```json No Messages
+{
+  "message": "No messages found"
+}
+```
+
+## Example Request
+
+```bash cURL
+curl http://localhost:3000/time-left
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3000/time-left');
+const data = await response.json();
+
+console.log(data);
+// { timeLeft: "23.45" }
+```
+
+## Status Codes
+
+<ResponseField name="200" type="OK">
+  Successfully calculated time remaining
+</ResponseField>
+
+<ResponseField name="404" type="Not Found">
+  Admin profile not found, missing last check-in, or no messages exist
+</ResponseField>
+
+## Use Cases
+
+- **Monitoring Dashboard**: Display when the next message needs to be sent
+- **Reminder System**: Trigger notifications when time is running low
+- **Health Checks**: Verify messages are properly scheduled

@@ -1,0 +1,233 @@
+---
+title: 'Installation & Setup'
+description: 'Get started with WhatsApp Message Scheduler - installation, dependencies, and database setup'
+---
+
+This guide will walk you through setting up the WhatsApp Message Scheduler on your local machine.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- [Bun](https://bun.sh/) runtime (v1.0 or higher)
+- A Redis server (we recommend [Upstash](https://upstash.com/) for a free hosted option)
+- A WhatsApp account for scanning the QR code
+
+<Note>
+  This application uses **WhatsApp Web** protocol via `whatsapp-web.js`, which requires QR code authentication.
+</Note>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    First, clone the project repository to your local machine:
+    
+    ```bash
+    git clone <repository-url>
+    cd whatsapp-message-scheduler
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all required packages using Bun:
+    
+    ```bash
+    bun install
+    ```
+    
+    This will install the following key dependencies:
+    
+    - **hono** - Fast web framework for routing
+    - **whatsapp-web.js** - WhatsApp Web API client
+    - **@prisma/client** - Database ORM
+    - **bullmq** - Message queue for job scheduling
+    - **ioredis** - Redis client for BullMQ
+    - **qrcode-terminal** - Display QR codes in terminal
+    
+    <Note>
+      The `postinstall` script will automatically run `prisma generate` to create the Prisma client.
+    </Note>
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create a `.env` file in the root directory with the required configuration:
+    
+    ```bash .env
+    PORT=3000
+    DATABASE_URL="file:./dev.db"
+    REDIS_REST_URL="<YOUR_REDIS_URL>"
+    USERNAME=user
+    PASSWORD=pass
+    ```
+    
+    <Warning>
+      Make sure to replace `<YOUR_REDIS_URL>` with your actual Redis connection URL. See the [Redis Setup](/guides/redis-setup) guide for details.
+    </Warning>
+  </Step>
+
+  <Step title="Initialize the Database">
+    Set up the SQLite database using Prisma:
+    
+    ```bash
+    bunx prisma migrate dev --name init
+    ```
+    
+    This creates the database schema with three models:
+    
+    - **AdminProfile** - Stores admin information and last check-in time
+    - **People** - Contact list with names and phone numbers
+    - **Message** - Scheduled messages with content and send time
+    
+    <Accordion title="View Database Schema">
+      ```prisma schema.prisma
+      generator client {
+        provider = "prisma-client-js"
+      }
+
+      datasource db {
+        provider = "sqlite"
+        url      = env("DATABASE_URL")
+      }
+
+      model AdminProfile {
+        id          String   @id @default(cuid())
+        name        String
+        email       String
+        password    String
+        lastCheckIn DateTime @default(now())
+      }
+
+      model People {
+        id      String    @id @default(cuid())
+        name    String    @unique
+        phone   String    @unique
+        Message Message[]
+      }
+
+      model Message {
+        id          String   @id @default(cuid())
+        content     String
+        sendTo      People   @relation(fields: [sendToPhone], references: [phone])
+        sendToPhone String
+        sendAfter   Float    @default(0)
+        createdAt   DateTime @default(now())
+      }
+      ```
+    </Accordion>
+  </Step>
+
+  <Step title="Start the Server">
+    Launch the application:
+    
+    ```bash
+    bun run start
+    ```
+    
+    Or for development with hot reload:
+    
+    ```bash
+    bun run dev
+    ```
+  </Step>
+
+  <Step title="Scan the QR Code">
+    When the server starts, a QR code will appear in your terminal:
+    
+    ```
+    [QR RECEIVED]
+    █████████████████████████████
+    █████████████████████████████
+    ████ ▄▄▄▄▄ █▀█ █▄█ ▄▄▄▄▄ ████
+    ...
+    ```
+    
+    1. Open WhatsApp on your mobile device
+    2. Go to **Settings** > **Linked Devices**
+    3. Tap **Link a Device**
+    4. Scan the QR code displayed in your terminal
+    
+    <Note>
+      Once authenticated, you'll receive a confirmation message on WhatsApp: "Backend Server Started successfully! 🚀"
+    </Note>
+  </Step>
+</Steps>
+
+## Verify Installation
+
+After completing the setup, verify that everything is working:
+
+<CodeGroup>
+```bash Test Server Health
+curl http://localhost:3000
+```
+
+```json Expected Response
+{
+  "message": "Backend Server is running !!!"
+}
+```
+</CodeGroup>
+
+You can also test the authenticated endpoints:
+
+```bash Test Authentication
+curl -u user:pass http://localhost:3000/messages/all
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn about environment variables and configuration options
+  </Card>
+  <Card title="Authentication" icon="lock" href="/guides/authentication">
+    Set up secure access to your API endpoints
+  </Card>
+  <Card title="Redis Setup" icon="database" href="/guides/redis-setup">
+    Configure Redis for message queue management
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore available API endpoints
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="QR Code Not Displaying">
+    If the QR code doesn't appear:
+    
+    1. Ensure your terminal supports Unicode characters
+    2. Try maximizing your terminal window
+    3. Check that `qrcode-terminal` is properly installed
+    4. Restart the server with `bun run start`
+  </Accordion>
+
+  <Accordion title="Database Connection Error">
+    If you see database errors:
+    
+    1. Verify `DATABASE_URL` is set in `.env`
+    2. Run `bunx prisma generate` manually
+    3. Delete `dev.db` and run migrations again
+    4. Check file permissions in your project directory
+  </Accordion>
+
+  <Accordion title="Redis Connection Failed">
+    If Redis connection fails:
+    
+    1. Verify your `REDIS_REST_URL` is correct
+    2. Check if Redis server is running
+    3. Test connectivity with `redis-cli ping`
+    4. See the [Redis Setup](/guides/redis-setup) guide for detailed troubleshooting
+  </Accordion>
+
+  <Accordion title="WhatsApp Client Disconnected">
+    If WhatsApp disconnects:
+    
+    1. Check your internet connection
+    2. Re-scan the QR code
+    3. Ensure your phone has an active WhatsApp session
+    4. Clear the `.wwebjs_auth` folder and restart
+  </Accordion>
+</AccordionGroup>

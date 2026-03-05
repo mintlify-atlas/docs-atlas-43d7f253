@@ -10,7 +10,7 @@ Manually trigger the rescheduling of all pending messages. This updates the inte
 This endpoint requires Basic Authentication.
 
 <ParamField header="Authorization" type="string" required>
-  Basic Auth credentials in the format `Basic base64(username:password)`
+  Basic Auth credentials in the format `Basic base64(user:pass)`
 </ParamField>
 
 ## Response
@@ -38,8 +38,8 @@ This endpoint requires Basic Authentication.
 ## Example Request
 
 ```bash
-curl -X GET https://your-api.com/messages/reschedule \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+curl -X GET http://localhost:3000/messages/reschedule \
+  -H "Authorization: Basic $(echo -n 'user:pass' | base64)"
 ```
 
 ## Notes

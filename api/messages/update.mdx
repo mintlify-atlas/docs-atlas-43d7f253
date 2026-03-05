@@ -10,7 +10,7 @@ Update an existing scheduled message.
 This endpoint requires Basic Authentication.
 
 <ParamField header="Authorization" type="string" required>
-  Basic Auth credentials in the format `Basic base64(username:password)`
+  Basic Auth credentials in the format `Basic base64(user:pass)`
 </ParamField>
 
 ## Path Parameters
@@ -58,12 +58,12 @@ This endpoint requires Basic Authentication.
 ## Example Request
 
 ```bash
-curl -X POST https://your-api.com/messages/update-one/clx1a2b3c4d5e6f7g8h9i0j1k \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+curl -X POST http://localhost:3000/messages/update-one/clx1a2b3c4d5e6f7g8h9i0j1k \
+  -H "Authorization: Basic $(echo -n 'user:pass' | base64)" \
   -H "Content-Type: application/json" \
   -d '{
     "content": "Updated message: Happy Birthday!",
-    "sendToPhone": "+1234567890",
+    "sendToPhone": "8801234567890",
     "sendAfter": 10
   }'
 ```
@@ -72,4 +72,5 @@ curl -X POST https://your-api.com/messages/update-one/clx1a2b3c4d5e6f7g8h9i0j1k 
 
 - Only include fields you want to update in the request body
 - After updating a message, the scheduler automatically reschedules all pending messages
+- If updating `sendToPhone`, the new phone number must exist in the People database (foreign key constraint)
 - If the message ID doesn't exist, a 500 error will be returned

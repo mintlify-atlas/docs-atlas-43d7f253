@@ -19,7 +19,7 @@ This endpoint requires Basic Authentication. Include the credentials in the Auth
 <ParamField body="phone" type="string" required>
   Person's phone number (must be unique and exactly 13 characters)
   
-  **Validation:** Phone number must be exactly 13 characters long (e.g., +12345678901)
+  **Validation:** Phone number must be exactly 13 characters long (e.g., 8801234567890 for Bangladesh)
 </ParamField>
 
 ## Response
@@ -31,12 +31,12 @@ This endpoint requires Basic Authentication. Include the credentials in the Auth
 ## Example Request
 
 ```bash
-curl -X POST https://your-domain.com/people/create-one \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+curl -X POST http://localhost:3000/people/create-one \
+  -H "Authorization: Basic $(echo -n 'user:pass' | base64)" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
-    "phone": "+12345678901"
+    "phone": "8801234567890"
   }'
 ```
 

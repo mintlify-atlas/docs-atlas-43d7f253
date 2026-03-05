@@ -10,7 +10,7 @@ Create a new scheduled WhatsApp message.
 This endpoint requires Basic Authentication.
 
 <ParamField header="Authorization" type="string" required>
-  Basic Auth credentials in the format `Basic base64(username:password)`
+  Basic Auth credentials in the format `Basic base64(user:pass)`
 </ParamField>
 
 ## Request Body
@@ -20,7 +20,7 @@ This endpoint requires Basic Authentication.
 </ParamField>
 
 <ParamField body="sendToPhone" type="string" required>
-  Recipient's phone number in international format (e.g., +1234567890)
+  Recipient's phone number (must be exactly 13 characters). Must match an existing phone number in the People database.
 </ParamField>
 
 <ParamField body="sendAfter" type="number" required>
@@ -70,18 +70,18 @@ This endpoint requires Basic Authentication.
 ## Example Request
 
 ```bash
-curl -X POST https://your-api.com/messages/create-one \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+curl -X POST http://localhost:3000/messages/create-one \
+  -H "Authorization: Basic $(echo -n 'user:pass' | base64)" \
   -H "Content-Type: application/json" \
   -d '{
     "content": "Happy Birthday! Hope you have a great day!",
-    "sendToPhone": "+1234567890",
+    "sendToPhone": "8801234567890",
     "sendAfter": 7
   }'
 ```
 
 ## Notes
 
-- The `sendAfter` value represents the number of days from now when the message should be sent
+- The `sendAfter` value represents the number of days from the admin's last check-in when the message should be sent
 - After creating a message, the scheduler automatically reschedules all pending messages
-- The recipient must exist in the People database or will be created automatically
+- The recipient phone number must already exist in the People database (foreign key constraint)

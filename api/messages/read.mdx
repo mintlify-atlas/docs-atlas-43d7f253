@@ -10,7 +10,7 @@ Retrieve a specific scheduled message by its ID.
 This endpoint requires Basic Authentication.
 
 <ParamField header="Authorization" type="string" required>
-  Basic Auth credentials in the format `Basic base64(username:password)`
+  Basic Auth credentials in the format `Basic base64(user:pass)`
 </ParamField>
 
 ## Path Parameters
@@ -70,6 +70,6 @@ null
 ## Example Request
 
 ```bash
-curl -X GET https://your-api.com/messages/read-one/clx1a2b3c4d5e6f7g8h9i0j1k \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+curl -X GET http://localhost:3000/messages/read-one/clx1a2b3c4d5e6f7g8h9i0j1k \
+  -H "Authorization: Basic $(echo -n 'user:pass' | base64)"
 ```

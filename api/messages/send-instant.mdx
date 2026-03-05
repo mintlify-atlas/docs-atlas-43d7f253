@@ -10,7 +10,7 @@ Send a WhatsApp message immediately without scheduling.
 This endpoint requires Basic Authentication.
 
 <ParamField header="Authorization" type="string" required>
-  Basic Auth credentials in the format `Basic base64(username:password)`
+  Basic Auth credentials in the format `Basic base64(user:pass)`
 </ParamField>
 
 ## Request Body
@@ -20,7 +20,7 @@ This endpoint requires Basic Authentication.
 </ParamField>
 
 <ParamField body="sendToPhone" type="string" required>
-  Recipient's phone number in international format (e.g., +1234567890)
+  Recipient's phone number (e.g., 8801234567890)
 </ParamField>
 
 ## Response
@@ -58,12 +58,12 @@ This endpoint requires Basic Authentication.
 ## Example Request
 
 ```bash
-curl -X POST https://your-api.com/messages/send-instant \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+curl -X POST http://localhost:3000/messages/send-instant \
+  -H "Authorization: Basic $(echo -n 'user:pass' | base64)" \
   -H "Content-Type: application/json" \
   -d '{
     "content": "Hello! This is an instant message.",
-    "sendToPhone": "+1234567890"
+    "sendToPhone": "8801234567890"
   }'
 ```
 

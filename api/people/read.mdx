@@ -33,8 +33,8 @@ This endpoint requires Basic Authentication. Include the credentials in the Auth
 ## Example Request
 
 ```bash
-curl -X GET https://your-domain.com/people/read-one/clx1234567890abcdefgh \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)"
+curl -X GET http://localhost:3000/people/read-one/clx1234567890abcdefgh \
+  -H "Authorization: Basic $(echo -n 'user:pass' | base64)"
 ```
 
 ## Example Response
@@ -45,7 +45,7 @@ curl -X GET https://your-domain.com/people/read-one/clx1234567890abcdefgh \
 {
   "id": "clx1234567890abcdefgh",
   "name": "John Doe",
-  "phone": "+12345678901"
+  "phone": "8801234567890"
 }
 ```
 

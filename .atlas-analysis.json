@@ -1,0 +1,106 @@
+{
+  "projectType": "api-service",
+  "projectName": "WhatsApp Message Scheduler",
+  "projectDescription": "A Bun + Hono backend service for scheduling and sending automated WhatsApp messages with Redis-powered job queuing",
+  "theme": "mint",
+  "primaryColor": "#040404",
+  "lightColor": "#6ce7c1",
+  "darkColor": "#6a7c7c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/message-scheduling",
+              "concepts/whatsapp-integration"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup",
+              "guides/configuration",
+              "guides/redis-setup",
+              "guides/authentication"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview"
+            ]
+          },
+          {
+            "group": "Messages",
+            "pages": [
+              "api/messages/list",
+              "api/messages/create",
+              "api/messages/read",
+              "api/messages/update",
+              "api/messages/delete",
+              "api/messages/send-instant",
+              "api/messages/reschedule"
+            ]
+          },
+          {
+            "group": "People",
+            "pages": [
+              "api/people/list",
+              "api/people/create",
+              "api/people/read",
+              "api/people/update",
+              "api/people/delete"
+            ]
+          },
+          {
+            "group": "System",
+            "pages": [
+              "api/system/health",
+              "api/system/time-left"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Automated WhatsApp message scheduling with configurable delays",
+    "Redis-powered job queue with BullMQ for reliable message delivery",
+    "RESTful API for managing contacts and scheduled messages",
+    "WhatsApp Web.js integration with QR code authentication",
+    "SQLite database with Prisma ORM for data persistence",
+    "Basic authentication for API endpoints"
+  ],
+  "publicApiSurface": [
+    "GET /messages/all - List all scheduled messages",
+    "POST /messages/create-one - Create a new scheduled message",
+    "GET /messages/read-one/:id - Get a specific message",
+    "POST /messages/update-one/:id - Update a scheduled message",
+    "POST /messages/delete-one/:id - Delete a scheduled message",
+    "POST /messages/send-instant - Send an immediate WhatsApp message",
+    "GET /messages/reschedule - Manually trigger message rescheduling",
+    "GET /people/all - List all contacts",
+    "POST /people/create-one - Add a new contact",
+    "GET /people/read-one/:id - Get a specific contact",
+    "POST /people/update-one/:id - Update a contact",
+    "POST /people/delete-one/:id - Delete a contact",
+    "GET / - Health check endpoint",
+    "GET /time-left - Get time remaining until next scheduled message"
+  ]
+}
